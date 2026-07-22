@@ -1,0 +1,2453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0A3A28" />
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+<meta name="referrer" content="no-referrer" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/png" href="icon-192.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="21° Quest" />
+<title>The 21° Quest — Taskmaster Scoreboard</title>
+
+<!-- ============================================================= -->
+<!--  FIREBASE  (leave blank = local mode. Paste your keys later)   -->
+<!--  Tutorial tells you exactly what to put here.                  -->
+<!-- ============================================================= -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  // 👇  PASTE YOUR FIREBASE CONFIG BETWEEN THE CURLY BRACES  👇
+  const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCW0n6Lrn0JmuYs-dVyMg3r37C4H-WgIbo",
+  authDomain: "quest21-c7883.firebaseapp.com",
+  databaseURL: "https://quest21-c7883-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "quest21-c7883",
+  storageBucket: "quest21-c7883.firebasestorage.app",
+  messagingSenderId: "235093721852",
+  appId: "1:235093721852:web:38f8d1d83b9a26df728d79"
+};
+  // 👆  Until you fill this in, the app runs on this device only.  👆
+
+  // ---- Taskmaster passcode: asked once per phone before the app opens. ----
+  // Share this in the taskmaster group chat only. The ?tv team link is NOT affected.
+  const TASKMASTER_CODE = "0506";
+
+  // ---- Lead PIN: asked when someone taps "Lead ★". Change to any digits you like. ----
+  // Deterrent, not a vault — keeps curious participants out of the Lead controls.
+  const LEAD_PIN = "0104";
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --green:#0A3A28; --green-deep:#062719; --green-soft:#0E4732;
+  --coral:#E15B57; --coral-dark:#C64743;
+  --mint:#8FCBA0; --mint-bright:#57BE84;
+  --cream:#FCEBD5; --cream-line:#F2DFC5;
+  --paper:#FAF8F4; --ink:#123024; --muted:#5C6B62; --line:#E4E7E2;
+  --shadow:0 6px 22px rgba(6,39,25,.10);
+  --shadow-lg:0 14px 40px rgba(6,39,25,.18);
+  --nav-h:66px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; padding:0}
+body{
+  font-family:'Nunito', system-ui, -apple-system, sans-serif;
+  background:var(--paper); color:var(--ink);
+  font-weight:600; line-height:1.45;
+  overscroll-behavior-y:none;
+}
+button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit}
+input,select{font-family:inherit}
+.display{font-family:'Anton','Arial Narrow',sans-serif; font-weight:400; letter-spacing:.5px; text-transform:uppercase}
+:focus-visible{outline:3px solid var(--coral); outline-offset:2px; border-radius:6px}
+
+/* ===== puzzle texture (used on dark surfaces) ===== */
+.puzzle{position:relative; overflow:hidden}
+.puzzle::before{
+  content:""; position:absolute; inset:0; z-index:0;
+  background-image:radial-gradient(circle at 12px 0,transparent 6px,var(--green-soft) 6.5px,transparent 7px);
+  background-size:48px 48px; opacity:.35; pointer-events:none;
+}
+.puzzle > *{position:relative; z-index:1}
+
+/* =====================  LANDING / TEAM GATE  ===================== */
+#landing, #teamGate{
+  position:fixed; inset:0; background:var(--green); z-index:52;
+  display:none; flex-direction:column; align-items:center; justify-content:center;
+  padding:26px 22px calc(26px + env(safe-area-inset-bottom)); text-align:center; overflow-y:auto;
+}
+#landing.show, #teamGate.show{display:flex}
+#landing h1, #teamGate h1{font-size:clamp(36px,11vw,54px); color:var(--coral); margin:6px 0 2px; line-height:.92}
+#landing h1 .deg{color:var(--mint)}
+.role-grid{display:flex; flex-direction:column; gap:12px; width:100%; max-width:340px; margin-top:26px}
+.role-btn{
+  background:#0E4732; border:2px solid rgba(143,203,160,.28); border-radius:20px;
+  padding:20px 16px; color:#fff; display:flex; flex-direction:column; align-items:center; gap:4px;
+  transition:transform .12s ease, border-color .12s ease;
+}
+.role-btn:active{transform:scale(.97)}
+.role-btn.tm{border-color:rgba(225,91,87,.45)}
+.role-btn .role-ic{font-size:26px}
+.role-btn .role-nm{font-family:'Anton'; font-size:20px; letter-spacing:.5px}
+.role-btn .role-sub{font-size:12px; color:var(--mint); font-weight:700}
+.gate-back{margin-top:16px; color:#8fb3a0; font-size:13px; font-weight:800; padding:10px; width:100%}
+.gate-back:active{color:#fff}
+
+/* =====================  TEAM APP  ===================== */
+#teamApp{display:none; min-height:100vh; padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+.clue-wait{background:#fff; border:1px solid var(--line); border-radius:20px; padding:34px 20px; text-align:center; box-shadow:var(--shadow)}
+.clue-wait .cw-ic{font-size:40px}
+.clue-wait .cw-t{font-family:'Anton'; font-size:22px; color:var(--green); margin:10px 0 4px}
+.clue-wait .cw-s{font-size:13px; font-weight:700; color:var(--muted); line-height:1.6}
+.clue-card{background:#fff; border:1px solid var(--line); border-radius:22px; overflow:hidden; box-shadow:var(--shadow-lg); margin-bottom:14px}
+.clue-top{background:var(--green); color:#fff; padding:16px 18px; position:relative; overflow:hidden}
+.clue-top .ct-n{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:2px; color:var(--mint)}
+.clue-top .ct-t{font-family:'Anton'; font-size:26px; line-height:1; margin-top:2px}
+.clue-timer{display:flex; gap:7px; margin-top:14px}
+.clue-timer .ct-box{flex:1; min-width:0; background:rgba(255,255,255,.13); border-radius:12px; padding:8px 4px; text-align:center}
+.clue-timer .ct-num{font-family:'Anton'; font-size:18px; color:#fff; line-height:1; white-space:nowrap}
+.clue-timer .ct-lbl{font-size:8.5px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--mint); margin-top:4px; line-height:1.2}
+.clue-timer .ct-box.warn .ct-num{color:#FFD98A}
+.clue-timer .ct-box.over .ct-num{color:#ffb3b0}
+.clue-body{padding:20px 18px}
+.riddle{font-size:17px; font-weight:700; line-height:1.7; color:var(--ink); white-space:pre-line; font-style:italic}
+.clue-div{height:1px; background:var(--line); margin:18px 0}
+.task-lbl{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:var(--coral); margin-bottom:6px}
+.task-tx{font-size:15px; font-weight:700; line-height:1.65; white-space:pre-line}
+.clue-done{background:#e0f5ea; border:1px solid #bfe6cf; border-radius:16px; padding:16px; text-align:center; margin-bottom:14px}
+.clue-done .cd-t{font-family:'Anton'; font-size:19px; color:#1f7d4d}
+.clue-done .cd-s{font-size:13px; font-weight:700; color:#2c8f5c; margin-top:2px}
+.mini-prog{display:flex; gap:5px; justify-content:center; margin:14px 0 4px; flex-wrap:wrap}
+.mini-prog i{width:26px;height:26px;border-radius:7px; border:2px dashed var(--cream-line); display:flex;align-items:center;justify-content:center; font-family:'Anton'; font-size:11px; color:#d3c0a6; font-style:normal}
+.mini-prog i.done{background:rgba(87,190,132,.10); border:2px solid var(--mint-bright); color:#2c8f5c; transform:rotate(-6deg)}
+.mini-prog i.now{background:#fff; border:2px solid var(--coral); color:var(--coral)}
+.bonus-item{display:flex; gap:12px; padding:13px 0; border-bottom:1px solid var(--line)}
+.bonus-item:last-child{border-bottom:none}
+.bonus-item .bi-n{width:26px;height:26px;border-radius:8px; background:var(--cream); color:#a9762f; font-family:'Anton'; font-size:12px; display:flex;align-items:center;justify-content:center; flex:0 0 auto}
+.bonus-item .bi-t{font-weight:700; font-size:14px; line-height:1.45}
+.bonus-item .bi-p{font-size:11px; font-weight:800; color:var(--mint-bright); margin-top:2px}
+/* riddle-locked bonus cards */
+.bcard{background:#fff; border:1px solid var(--line); border-radius:18px; padding:15px; margin-bottom:12px; box-shadow:var(--shadow)}
+.bcard.open{background:#f4fbf7; border-color:#bfe6cf}
+.bc-head{display:flex; align-items:center; gap:9px; margin-bottom:10px}
+.bc-n{width:26px;height:26px;border-radius:8px; background:var(--cream); color:#a9762f; font-family:'Anton'; font-size:12px; display:flex;align-items:center;justify-content:center; flex:0 0 auto}
+.bc-n.done{background:var(--mint-bright); color:#fff}
+.bc-st{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#1f7d4d; flex:1}
+.bc-st.locked{color:var(--muted)}
+.bc-p{font-size:11px; font-weight:800; color:var(--coral)}
+.bc-riddle{font-size:15px; font-weight:700; font-style:italic; line-height:1.65; color:var(--ink); white-space:pre-line; margin-bottom:12px}
+.bc-task{font-size:15px; font-weight:700; line-height:1.6; white-space:pre-line}
+.bc-form{display:flex; gap:8px}
+.bc-input{flex:1; min-width:0; border:1px solid var(--line); border-radius:12px; padding:12px; font-weight:700; font-size:15px; background:var(--paper)}
+.bc-input:focus{outline:none; border-color:var(--mint-bright)}
+.bc-go{background:var(--green); color:#fff; font-family:'Anton'; font-size:15px; letter-spacing:.5px; padding:12px 18px; border-radius:12px; flex:0 0 auto}
+.bc-go:active{transform:scale(.97)}
+.unlock-tag{display:inline-block; font-size:10px; font-weight:800; padding:1px 7px; border-radius:20px; background:#eef1ee; color:#8a938c; margin-left:4px}
+.unlock-tag.on{background:#e0f5ea; color:#1f7d4d}
+
+/* =====================  TASKMASTER GATE  ===================== */
+#gate{
+  position:fixed; inset:0; background:var(--green); z-index:50;
+  display:none; flex-direction:column; align-items:center; justify-content:center;
+  padding:26px 22px calc(26px + env(safe-area-inset-bottom)); text-align:center; overflow-y:auto;
+}
+#gate.show{display:flex}
+#gate h1{font-size:clamp(36px,11vw,54px); color:var(--coral); margin:6px 0 2px; line-height:.92}
+#gate h1 .deg{color:var(--mint)}
+.gate-box{width:100%; max-width:320px; margin-top:10px}
+.gate-btn{width:100%; margin-top:14px; padding:15px; border-radius:14px; background:var(--mint-bright); color:#fff; font-family:'Anton'; font-size:19px; letter-spacing:.5px}
+.gate-btn:active{transform:scale(.98)}
+.gate-note{color:#8fb3a0; font-size:12px; font-weight:700; margin-top:18px; line-height:1.8}
+.gate-link{display:inline-block; margin-top:6px; color:var(--mint); font-weight:800; font-size:13px; text-decoration:none; border-bottom:2px solid rgba(143,203,160,.4); padding-bottom:2px}
+.gate-link:active{color:#fff}
+/* team link sharing card */
+.link-box{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:10px}
+.link-box code{flex:1; min-width:0; font-size:12px; font-weight:700; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:ui-monospace,monospace}
+.link-actions{display:flex; gap:8px}
+.link-actions button, .link-actions a{flex:1; padding:12px; border-radius:12px; font-weight:800; font-size:14px; text-align:center; text-decoration:none; display:block}
+.link-share{background:var(--mint-bright); color:#fff}
+.link-open{background:var(--paper); color:var(--ink); border:1px solid var(--line)}
+.link-actions button:active, .link-actions a:active{transform:scale(.98)}
+
+/* =====================  LOGIN  ===================== */
+#login{
+  position:fixed; inset:0; background:var(--green);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:26px 22px calc(26px + env(safe-area-inset-bottom)); text-align:center; z-index:40;
+  overflow-y:auto;
+}
+.brand-mark{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+.brand-mark{flex-direction:column; gap:6px}
+.logo21{height:52px; width:auto; display:block}
+.spec-logo{height:30px; width:auto; display:block; flex:0 0 auto}
+.brand-sub{color:var(--coral); font-size:12px; letter-spacing:7px; font-weight:800; text-transform:uppercase; text-indent:7px}
+#login h1{font-size:clamp(40px,13vw,62px); color:var(--coral); margin:6px 0 2px; line-height:.92}
+#login h1 .deg{color:var(--mint)}
+.login-tag{color:#dff0e6; font-size:13px; letter-spacing:2px; text-transform:uppercase; font-weight:800; margin-bottom:26px}
+.pick-label{color:var(--mint); font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:14px}
+.tm-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; max-width:440px}
+.tm-btn{
+  background:#0E4732; border:2px solid rgba(143,203,160,.28); border-radius:18px;
+  padding:16px 12px; color:#fff; display:flex; flex-direction:column; align-items:center; gap:8px;
+  transition:transform .12s ease, border-color .12s ease, background .12s ease;
+}
+.tm-btn:active{transform:scale(.96)}
+.tm-btn .dot{width:34px;height:34px;border-radius:50%; display:flex;align-items:center;justify-content:center; font-family:'Anton'; font-size:16px; color:#fff}
+.tm-btn .nm{font-weight:800; font-size:16px}
+.tm-btn .tm-team{font-size:11px; color:var(--mint); font-weight:700; letter-spacing:.5px; text-transform:uppercase}
+.tm-btn.lead{grid-column:1 / -1; border-color:var(--coral); background:#12503a}
+
+/* =====================  APP SHELL  ===================== */
+#app{display:none; min-height:100vh; padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+.topbar{
+  position:sticky; top:0; z-index:20; background:var(--green); color:#fff;
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+}
+.topbar .who{display:flex; align-items:center; gap:10px; min-width:0}
+.topbar .who .dot{width:32px;height:32px;border-radius:50%; display:flex;align-items:center;justify-content:center; font-family:'Anton'; font-size:14px; flex:0 0 auto}
+.topbar .who .txt{min-width:0}
+.topbar .who .nm{font-weight:800; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.topbar .who .role{font-size:11px; color:var(--mint); font-weight:700; text-transform:uppercase; letter-spacing:.5px}
+.switch-btn{background:rgba(255,255,255,.12); border-radius:12px; padding:9px 12px; color:#fff; font-weight:800; font-size:12px; display:flex; align-items:center; gap:6px}
+.switch-btn:active{background:rgba(255,255,255,.22)}
+
+.view{display:none; padding:16px 16px 8px; max-width:620px; margin:0 auto; animation:fade .25s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
+
+.view-title{font-size:30px; color:var(--coral); margin:2px 0 2px}
+.view-sub{color:var(--muted); font-size:13px; font-weight:700; margin-bottom:16px}
+
+/* =====================  TEAM VIEW  ===================== */
+.team-hero{
+  border-radius:22px; padding:18px; color:#fff; position:relative; overflow:hidden;
+  box-shadow:var(--shadow); margin-bottom:8px;
+}
+.team-hero .th-top{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:2}
+.team-hero .th-label{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; opacity:.9}
+.team-hero .th-name{font-family:'Anton'; font-size:34px; line-height:.95; margin-top:2px}
+.team-hero .th-score{text-align:right}
+.team-hero .th-score .num{font-family:'Anton'; font-size:44px; line-height:.9}
+.team-hero .th-score .lbl{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; opacity:.9}
+.team-hero .th-rank{display:inline-flex; align-items:center; gap:6px; margin-top:12px; background:rgba(255,255,255,.18); padding:5px 11px; border-radius:20px; font-weight:800; font-size:13px; position:relative; z-index:2}
+
+.roster{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 20px}
+.roster .chip{background:#fff; border:1px solid var(--line); border-radius:20px; padding:5px 11px; font-size:12px; font-weight:700; box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.roster .chip.empty{color:var(--muted); font-style:italic}
+
+/* progress dots */
+.cp-track{display:flex; gap:6px; margin:0 0 18px; flex-wrap:wrap}
+.cp-dot{width:30px;height:30px;border-radius:9px; background:var(--cream); border:1.5px dashed var(--cream-line); display:flex;align-items:center;justify-content:center; font-family:'Anton'; font-size:13px; color:#caa; transition:transform .3s cubic-bezier(.2,1.4,.5,1)}
+.cp-dot.done{background:var(--mint-bright); border:1.5px solid var(--mint-bright); color:#fff; box-shadow:0 3px 8px rgba(87,190,132,.4)}
+.cp-dot.running{background:#fff; border:1.5px solid var(--coral); color:var(--coral); animation:pulse 1.3s ease infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(225,91,87,.35)} 50%{box-shadow:0 0 0 6px rgba(225,91,87,0)}}
+@keyframes stamp{0%{transform:scale(0) rotate(-18deg); opacity:0} 60%{transform:scale(1.25) rotate(6deg)} 100%{transform:scale(1) rotate(0); opacity:1}}
+.cp-dot.just-stamped{animation:stamp .5s cubic-bezier(.2,1.4,.5,1)}
+
+/* challenge card */
+.ch-card{background:#fff; border:1px solid var(--line); border-radius:18px; margin-bottom:12px; overflow:hidden; box-shadow:var(--shadow)}
+.ch-head{display:flex; align-items:center; gap:12px; padding:14px 16px; width:100%; text-align:left}
+.ch-num{width:38px;height:38px;border-radius:11px; background:var(--green); color:var(--mint); font-family:'Anton'; font-size:17px; display:flex;align-items:center;justify-content:center; flex:0 0 auto}
+.ch-num.done{background:var(--mint-bright); color:#fff}
+.ch-meta{flex:1; min-width:0}
+.ch-meta .nm{font-family:'Anton'; font-size:19px; line-height:1}
+.ch-meta .lo{font-size:12px; color:var(--muted); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ch-right{text-align:right; flex:0 0 auto}
+.ch-right .pts{font-family:'Anton'; font-size:22px; color:var(--ink)}
+.ch-right .pts.zero{color:#c9cfca}
+.ch-right .caret{font-size:12px; color:var(--muted); font-weight:800; margin-top:2px}
+.time-badge{display:inline-block; font-size:11px; font-weight:800; padding:2px 8px; border-radius:20px; background:var(--cream); color:#a9762f; margin-top:3px}
+.time-badge.over{background:#fde3e2; color:var(--coral-dark)}
+.time-badge.warn{background:#fff2d6; color:#a9762f}
+.verify-note{background:var(--cream); border-radius:12px; padding:11px 13px; margin-top:14px; font-size:13px; font-weight:700; color:#7a5a24; line-height:1.5}
+.verify-note b{color:var(--coral-dark); text-transform:uppercase; font-size:11px; letter-spacing:.5px}
+
+.ch-body{display:none; padding:0 16px 16px; border-top:1px dashed var(--line)}
+.ch-card.open .ch-body{display:block; animation:fade .2s ease}
+.ch-card.open .caret{transform:rotate(180deg)}
+
+/* timer block */
+.timer-wrap{background:var(--green); border-radius:16px; padding:14px; color:#fff; margin:14px 0; text-align:center; position:relative; overflow:hidden}
+.timer-clock{font-family:'Anton'; font-size:40px; line-height:1; letter-spacing:1px}
+.timer-clock.over{color:#ffb3b0}
+.timer-state{font-size:11px; text-transform:uppercase; letter-spacing:1.5px; font-weight:800; color:var(--mint); margin-bottom:6px}
+.timer-times{display:flex; justify-content:center; gap:18px; margin-top:8px; font-size:12px; font-weight:700; color:#cfe6d8}
+.timer-times b{color:#fff}
+.timer-btns{display:flex; gap:10px; margin-top:12px}
+.big-btn{flex:1; padding:14px; border-radius:14px; font-family:'Anton'; font-size:18px; letter-spacing:.5px; transition:transform .1s ease}
+.big-btn:active{transform:scale(.97)}
+.big-btn.start{background:var(--mint-bright); color:#fff}
+.big-btn.stop{background:var(--coral); color:#fff}
+.big-btn.ghost{background:rgba(255,255,255,.14); color:#fff; flex:0 0 auto; font-size:13px; font-family:'Nunito'; font-weight:800; padding:14px 16px}
+.time-edit{display:none; gap:10px; margin-top:10px; justify-content:center}
+.time-edit.show{display:flex}
+.time-edit label{font-size:11px; color:#cfe6d8; font-weight:800; display:flex; flex-direction:column; gap:4px; text-align:left}
+.time-edit input{border:none; border-radius:8px; padding:8px; font-weight:800; font-size:14px; background:#fff; color:var(--ink)}
+
+/* scoring rows */
+.score-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid var(--line)}
+.score-row:last-child{border-bottom:none}
+.score-row .sr-label{font-weight:700; font-size:14px}
+.score-row .sr-hint{font-size:11px; color:var(--muted); font-weight:700}
+.stepper{display:flex; align-items:center; gap:0; background:var(--paper); border:1px solid var(--line); border-radius:12px; overflow:hidden; flex:0 0 auto}
+.stepper button{width:38px; height:38px; font-family:'Anton'; font-size:20px; color:var(--green); display:flex;align-items:center;justify-content:center}
+.stepper button:active{background:var(--cream)}
+.stepper .val{min-width:38px; text-align:center; font-weight:800; font-size:16px}
+.toggle{width:52px; height:30px; border-radius:20px; background:var(--line); position:relative; transition:background .15s ease; flex:0 0 auto}
+.toggle::after{content:""; position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:transform .15s ease}
+.toggle.on{background:var(--mint-bright)}
+.toggle.on::after{transform:translateX(22px)}
+.toggle.danger.on{background:var(--coral)}
+.adj-row{display:flex; gap:8px; align-items:center; margin-top:4px}
+.adj-row input[type=number]{width:70px; border:1px solid var(--line); border-radius:10px; padding:8px; font-weight:800; text-align:center}
+.adj-row input[type=text]{flex:1; border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-weight:600; font-size:13px}
+/* minus / type / plus stepper */
+.type-stepper{display:flex; align-items:center; background:var(--paper); border:1px solid var(--line); border-radius:14px; overflow:hidden}
+.type-stepper button{width:56px; height:48px; font-family:'Anton'; font-size:24px; color:var(--green); display:flex; align-items:center; justify-content:center; flex:0 0 auto}
+.type-stepper button:active{background:var(--cream)}
+.type-stepper .ts-input{flex:1; min-width:0; width:100%; text-align:center; border:none; background:transparent; font-weight:800; font-size:19px; color:var(--ink); padding:8px 2px; -moz-appearance:textfield; appearance:textfield}
+.type-stepper .ts-input::-webkit-outer-spin-button,.type-stepper .ts-input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+.type-stepper .ts-input:focus{outline:none}
+.reason-input{width:100%; border:1px solid var(--line); border-radius:12px; padding:11px 12px; font-weight:600; font-size:14px; background:var(--paper)}
+.sub-total{display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:12px; border-top:2px solid var(--ink)}
+.sub-total .lbl{font-family:'Anton'; font-size:16px}
+.sub-total .num{font-family:'Anton'; font-size:26px; color:var(--coral)}
+.reset-ch{margin-top:10px; width:100%; padding:10px; border-radius:10px; background:var(--paper); color:var(--muted); font-weight:800; font-size:12px; border:1px solid var(--line)}
+.reset-ch:active{background:var(--cream)}
+
+/* =====================  BONUS (team-level)  ===================== */
+.card{background:#fff; border:1px solid var(--line); border-radius:18px; padding:16px; box-shadow:var(--shadow); margin-bottom:14px}
+.card h3{font-family:'Anton'; font-size:19px; margin:0 0 4px; color:var(--green)}
+.card .card-sub{font-size:12px; color:var(--muted); font-weight:700; margin-bottom:10px}
+
+/* =====================  LEADERBOARD  ===================== */
+.podium{display:flex; align-items:flex-end; gap:8px; margin:6px 0 18px; min-height:150px}
+.pod{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px}
+.pod .medal{font-size:22px}
+.pod .pod-name{font-family:'Anton'; font-size:15px; text-align:center; line-height:1}
+.pod .pod-score{font-weight:800; font-size:13px}
+.pod .bar{width:100%; border-radius:12px 12px 0 0; display:flex; align-items:flex-start; justify-content:center; padding-top:8px; color:#fff; font-family:'Anton'; font-size:20px; box-shadow:var(--shadow)}
+.pod.p1 .bar{height:110px} .pod.p2 .bar{height:82px} .pod.p3 .bar{height:60px}
+
+.lb-row{background:#fff; border:1px solid var(--line); border-radius:16px; margin-bottom:10px; box-shadow:var(--shadow); overflow:hidden}
+.lb-main{display:flex; align-items:center; gap:12px; padding:14px 16px; width:100%; text-align:left}
+.lb-rank{font-family:'Anton'; font-size:24px; width:30px; text-align:center; color:var(--muted); flex:0 0 auto}
+.lb-rank.top{color:var(--coral)}
+.lb-badge{width:40px;height:40px;border-radius:12px; font-family:'Anton'; font-size:17px; color:#fff; display:flex;align-items:center;justify-content:center; flex:0 0 auto}
+.lb-info{flex:1; min-width:0}
+.lb-info .nm{font-family:'Anton'; font-size:18px; line-height:1}
+.lb-info .prog{font-size:11px; color:var(--muted); font-weight:700; margin-top:3px}
+.lb-total{font-family:'Anton'; font-size:26px; flex:0 0 auto}
+.lb-detail{display:none; padding:0 16px 14px; border-top:1px dashed var(--line)}
+.lb-row.open .lb-detail{display:block; animation:fade .2s ease}
+.lb-line{display:flex; justify-content:space-between; padding:7px 0; font-size:13px; font-weight:700; border-bottom:1px solid var(--line)}
+.lb-line:last-child{border-bottom:none}
+.lb-line .v{font-family:'Anton'; font-size:15px}
+.lb-line.neg .v{color:var(--coral)}
+.lb-line.muted{color:#b8beb9}
+
+/* =====================  RULES  ===================== */
+.rule-item{display:flex; gap:12px; padding:13px 0; border-bottom:1px solid var(--line)}
+.rule-item:last-child{border-bottom:none}
+.rule-ic{width:30px;height:30px;border-radius:9px; background:var(--cream); color:var(--coral-dark); font-family:'Anton'; font-size:14px; display:flex;align-items:center;justify-content:center; flex:0 0 auto}
+.rule-tx{font-weight:700; font-size:14px}
+.rule-tx small{display:block; color:var(--muted); font-weight:700; font-size:12px; margin-top:2px}
+.reminder{background:var(--green); color:#fff; border-radius:16px; padding:16px; margin-top:6px; text-align:center}
+.reminder b{color:var(--mint)}
+
+/* =====================  SETUP  ===================== */
+.setup-sec{margin-bottom:8px}
+.field{margin-bottom:12px}
+.field label{display:block; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:5px}
+.field input, .field textarea{width:100%; border:1px solid var(--line); border-radius:12px; padding:11px 12px; font-weight:700; font-size:14px; background:var(--paper)}
+.field textarea{min-height:78px; resize:vertical; line-height:1.6}
+.pt-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.pt-cell label{font-size:11px; font-weight:800; color:var(--muted); display:block; margin-bottom:4px}
+.pt-cell input{width:100%; border:1px solid var(--line); border-radius:10px; padding:9px; font-weight:800; text-align:center}
+.danger-btn{width:100%; padding:14px; border-radius:12px; background:#fde3e2; color:var(--coral-dark); font-weight:800; margin-top:8px; font-size:15px}
+.danger-btn:active{background:#fbd3d1}
+/* confirm modal */
+.modal-back{position:fixed; inset:0; background:rgba(6,39,25,.55); z-index:90; display:none; align-items:center; justify-content:center; padding:24px; backdrop-filter:blur(2px)}
+.modal-back.show{display:flex; animation:fade .18s ease}
+.modal{background:#fff; border-radius:22px; padding:22px; max-width:380px; width:100%; box-shadow:var(--shadow-lg); animation:pop .2s cubic-bezier(.2,1.3,.5,1)}
+@keyframes pop{from{transform:scale(.9); opacity:0} to{transform:scale(1); opacity:1}}
+.modal-title{font-size:26px; color:var(--coral); margin-bottom:8px}
+.modal-body{font-weight:700; font-size:14px; color:var(--ink); line-height:1.5; margin-bottom:20px}
+.modal-actions{display:flex; gap:10px}
+.modal-actions button{flex:1; padding:14px; border-radius:14px; font-weight:800; font-size:15px}
+.modal-cancel{background:var(--paper); color:var(--ink); border:1px solid var(--line)}
+.modal-cancel:active{background:var(--cream)}
+.modal-confirm{background:var(--coral); color:#fff}
+.modal-confirm:active{background:var(--coral-dark)}
+.pin-input{width:100%; border:2px solid var(--line); border-radius:14px; padding:14px; font-size:26px; font-weight:800; text-align:center; letter-spacing:10px; background:var(--paper); color:var(--ink)}
+.pin-input:focus{outline:none; border-color:var(--mint-bright)}
+.pin-err{display:none; color:var(--coral-dark); font-weight:800; font-size:13px; text-align:center; margin-top:8px}
+.pin-err.show{display:block}
+.save-note{font-size:12px; color:var(--muted); font-weight:700; text-align:center; margin-top:12px}
+
+/* =====================  BOTTOM NAV  ===================== */
+.nav{
+  position:fixed; left:0; right:0; bottom:0; z-index:30; height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+  background:#fff; border-top:1px solid var(--line); display:flex; box-shadow:0 -4px 20px rgba(6,39,25,.06);
+}
+.nav button{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--muted); font-weight:800; font-size:9.5px; letter-spacing:.2px; padding:0 2px}
+.nav button svg{width:21px; height:21px}
+.nav button.active{color:var(--coral)}
+.nav button.active svg{stroke:var(--coral)}
+
+/* =====================  STATS PAGE  ===================== */
+.stat-hero{background:var(--green); border-radius:20px; padding:18px; color:#fff; text-align:center; margin-bottom:14px; position:relative; overflow:hidden}
+.stat-hero .sh-emoji{font-size:34px}
+.stat-hero .sh-title{font-family:'Anton'; font-size:22px; margin:4px 0 2px}
+.stat-hero .sh-sub{font-size:12px; color:var(--mint); font-weight:800; text-transform:uppercase; letter-spacing:1px}
+.stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px}
+.stat-card{background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px; box-shadow:var(--shadow)}
+.stat-card.wide{grid-column:1 / -1}
+.stat-card .sc-emoji{font-size:22px}
+.stat-card .sc-label{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin:4px 0 2px}
+.stat-card .sc-team{font-family:'Anton'; font-size:19px; line-height:1.05}
+.stat-card .sc-detail{font-size:12px; font-weight:700; color:var(--coral); margin-top:2px}
+.stat-card.empty-stat .sc-team{color:#c9cfca; font-size:15px}
+.round-block{background:#fff; border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); margin-bottom:10px; overflow:hidden}
+.round-head{display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--paper)}
+.round-head .rn{width:30px;height:30px;border-radius:9px; background:var(--green); color:var(--mint); font-family:'Anton'; font-size:15px; display:flex;align-items:center;justify-content:center}
+.round-head .rt{font-family:'Anton'; font-size:16px}
+.round-row{display:flex; align-items:center; gap:10px; padding:9px 14px; border-top:1px solid var(--line); font-weight:700; font-size:13px}
+.round-row .rmedal{width:22px; text-align:center}
+.round-row .rteam{flex:1}
+.round-row .rtime{font-family:'Anton'; font-size:15px; color:var(--green)}
+.round-row.none{color:#b8beb9; font-style:italic; justify-content:center}
+.badge-wrap{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+.badge{display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:20px; font-size:11px; font-weight:800; background:var(--cream); color:#a9762f}
+.badge.jab{background:#fde3e2; color:var(--coral-dark)}
+.badge.hype{background:#e0f5ea; color:#1f7d4d}
+
+/* team brag button on team page */
+.brag-btn{width:100%; padding:14px; border-radius:14px; background:var(--green); color:#fff; font-family:'Anton'; font-size:17px; letter-spacing:.5px; margin-top:4px; display:flex; align-items:center; justify-content:center; gap:8px}
+.brag-btn:active{transform:scale(.98)}
+
+/* =====================  SPECTATOR  ===================== */
+#spectator{display:none; min-height:100vh; max-width:640px; margin:0 auto; padding-bottom:40px}
+.spec-top{position:sticky; top:0; z-index:20; background:var(--green); color:#fff; padding:calc(14px + env(safe-area-inset-top)) 16px 12px; border-radius:0 0 20px 20px}
+.spec-brand{display:flex; align-items:center; gap:12px}
+.spec-title{font-size:24px; line-height:1}
+.spec-live{font-size:12px; color:var(--mint); font-weight:800; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:6px; margin-top:2px}
+.live-dot{width:8px;height:8px;border-radius:50%; background:#57BE84; box-shadow:0 0 0 0 rgba(87,190,132,.6); animation:pulse 1.4s infinite}
+.spec-tabs{display:flex; gap:8px; margin-top:14px}
+.spec-tabs button{flex:1; padding:11px; border-radius:12px; background:rgba(255,255,255,.12); color:#fff; font-weight:800; font-size:14px}
+.spec-tabs button.on{background:#fff; color:var(--green)}
+#spec-content{padding:16px}
+
+/* =====================  BRAG CARD  ===================== */
+.brag-back{position:fixed; inset:0; background:rgba(6,39,25,.75); z-index:95; display:none; flex-direction:column; align-items:center; justify-content:center; padding:20px; gap:14px; backdrop-filter:blur(3px); overflow-y:auto}
+.brag-back.show{display:flex; animation:fade .2s ease}
+.brag-close{background:#fff; color:var(--ink); font-weight:800; padding:12px 28px; border-radius:14px; font-size:15px; flex:0 0 auto}
+.brag-card{width:100%; max-width:360px; border-radius:24px; overflow:hidden; box-shadow:var(--shadow-lg); background:#fff; animation:pop .25s cubic-bezier(.2,1.3,.5,1)}
+.brag-top{padding:22px 20px 18px; color:#fff; text-align:center; position:relative; overflow:hidden}
+.brag-top .bt-quest{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:2px; opacity:.9}
+.brag-top .bt-name{font-family:'Anton'; font-size:34px; line-height:1; margin:6px 0}
+.brag-top .bt-rank{display:inline-block; background:rgba(255,255,255,.2); padding:5px 14px; border-radius:20px; font-weight:800; font-size:14px; margin-top:4px}
+.brag-body{padding:18px 20px 22px}
+.brag-score{text-align:center; margin-bottom:16px}
+.brag-score .bs-num{font-family:'Anton'; font-size:52px; line-height:.9; color:var(--ink)}
+.brag-score .bs-lbl{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted)}
+.brag-stats{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px}
+.brag-stat{background:var(--paper); border-radius:12px; padding:10px; text-align:center}
+.brag-stat .n{font-family:'Anton'; font-size:20px; color:var(--green)}
+.brag-stat .l{font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted)}
+.brag-foot{text-align:center; font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:6px}
+.brag-tip{color:#fff; font-size:12px; font-weight:700; opacity:.85; text-align:center}
+
+/* ===== passport stamp language ===== */
+.cp-dot{
+  width:34px;height:34px;border-radius:8px; background:transparent;
+  border:2px dashed var(--cream-line); display:flex;align-items:center;justify-content:center;
+  font-family:'Anton'; font-size:14px; color:#d3c0a6;
+  transition:transform .3s cubic-bezier(.2,1.4,.5,1);
+}
+.cp-dot.done{
+  background:rgba(87,190,132,.10); border:2px solid var(--mint-bright); color:#2c8f5c;
+  box-shadow:none; transform:rotate(-6deg);
+}
+.cp-dot.done:nth-child(even){ transform:rotate(5deg) }
+.cp-dot.done:nth-child(3n){ transform:rotate(-9deg) }
+.cp-dot.running{ background:#fff; border:2px solid var(--coral); color:var(--coral); animation:pulse 1.3s ease infinite }
+@keyframes thunk{
+  0%{transform:scale(2.4) rotate(-24deg); opacity:0}
+  55%{transform:scale(.82) rotate(6deg); opacity:1}
+  75%{transform:scale(1.08) rotate(-3deg)}
+  100%{transform:scale(1) rotate(-6deg); opacity:1}
+}
+.cp-dot.just-stamped{ animation:thunk .45s cubic-bezier(.2,1.2,.4,1) }
+/* perforated ticket edge */
+.perf{position:relative}
+.perf::after{
+  content:""; position:absolute; left:0; right:0; bottom:-1px; height:6px;
+  background-image:radial-gradient(circle at 6px 6px, var(--paper) 4px, transparent 4.5px);
+  background-size:14px 12px; background-repeat:repeat-x; pointer-events:none;
+}
+/* 21 watermark */
+.wm{position:absolute; right:-18px; bottom:-26px; width:130px; opacity:.13; pointer-events:none; z-index:0}
+
+/* ===== countdown ===== */
+.countdown{display:flex; align-items:center; justify-content:center; gap:8px; background:rgba(255,255,255,.14); border-radius:14px; padding:9px 12px; margin-top:12px; position:relative; z-index:2}
+.countdown .cd-num{font-family:'Anton'; font-size:22px; color:#fff; letter-spacing:1px}
+.countdown .cd-lbl{font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:var(--mint)}
+.countdown.warn .cd-num{color:#FFD98A}
+.countdown.over .cd-num{color:#ffb3b0}
+.spec-countdown{background:rgba(255,255,255,.12); border-radius:14px; padding:10px; margin-top:12px; text-align:center}
+.spec-countdown .cd-num{font-family:'Anton'; font-size:30px; color:#fff; letter-spacing:1px; line-height:1}
+.spec-countdown .cd-lbl{font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:var(--mint); margin-top:2px}
+.spec-countdown.warn .cd-num{color:#FFD98A}
+.spec-countdown.over .cd-num{color:#ffb3b0}
+
+/* ===== undo bar ===== */
+.undo-bar{
+  position:fixed; left:50%; transform:translateX(-50%) translateY(24px);
+  bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+  background:var(--ink); color:#fff; border-radius:14px; padding:10px 10px 10px 16px;
+  display:flex; align-items:center; gap:14px; font-weight:800; font-size:13px;
+  opacity:0; transition:all .22s ease; z-index:72; pointer-events:none; box-shadow:var(--shadow-lg);
+}
+.undo-bar.show{opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto}
+.undo-bar button{background:var(--mint-bright); color:#fff; font-weight:800; font-size:13px; padding:8px 14px; border-radius:10px}
+
+/* confetti */
+#confetti{position:fixed; inset:0; pointer-events:none; z-index:94; display:none}
+#confetti.show{display:block}
+
+/* pill states */
+.conn-pill.saved{background:#e0f5ea; color:#1f7d4d; display:block}
+.conn-pill.offline{background:#fde3e2; color:var(--coral-dark); display:block}
+.spec-updated{font-size:11px; font-weight:700; color:var(--mint); opacity:.85}
+
+/* =====================  MISC  ===================== */
+.conn-pill{position:fixed; top:calc(6px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); z-index:60; font-size:11px; font-weight:800; padding:5px 12px; border-radius:20px; box-shadow:var(--shadow); display:none}
+.conn-pill.local{background:var(--cream); color:#a9762f; display:block}
+.conn-pill.live{background:#e0f5ea; color:#1f7d4d}
+.toast{position:fixed; left:50%; bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(20px); background:var(--ink); color:#fff; padding:11px 18px; border-radius:14px; font-weight:800; font-size:13px; opacity:0; transition:all .25s ease; z-index:70; pointer-events:none; box-shadow:var(--shadow-lg)}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+.empty{text-align:center; color:var(--muted); font-weight:700; padding:40px 20px}
+.footer-note{text-align:center; color:#b8beb9; font-size:11px; font-weight:700; padding:20px 0}
+</style>
+</head>
+<body>
+
+<!-- connection status -->
+<div id="connPill" class="conn-pill local">● On this device only</div>
+
+<!-- ===================== LOGIN ===================== -->
+<!-- ===================== LANDING (choose role) ===================== -->
+<div id="landing" class="puzzle">
+  <div class="brand-mark">
+    <svg class="logo21" viewBox="0 0 100 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="30" cy="26" r="14.5" stroke="#E15B57" stroke-width="11"/><path d="M8 68H50V40Z" fill="#E15B57"/><path d="M60 68V22L90 2V68Z" fill="#E15B57"/></svg>
+    <span class="brand-sub">Quest</span>
+  </div>
+  <h1 class="display">The 21<span class="deg">°</span> Quest</h1>
+  <div class="login-tag">Operation: Jeddah Park</div>
+  <div class="role-grid">
+    <button class="role-btn" onclick="chooseRole('team')">
+      <span class="role-ic">🧭</span>
+      <span class="role-nm">I'm a Team</span>
+      <span class="role-sub">Clues, timers & scoreboard</span>
+    </button>
+    <button class="role-btn tm" onclick="chooseRole('tm')">
+      <span class="role-ic">⏱️</span>
+      <span class="role-nm">I'm a Taskmaster</span>
+      <span class="role-sub">Scoring & timing</span>
+    </button>
+  </div>
+</div>
+
+<!-- ===================== TEAM PICKER + PIN ===================== -->
+<div id="teamGate" class="puzzle">
+  <div class="brand-mark">
+    <svg class="logo21" viewBox="0 0 100 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="30" cy="26" r="14.5" stroke="#E15B57" stroke-width="11"/><path d="M8 68H50V40Z" fill="#E15B57"/><path d="M60 68V22L90 2V68Z" fill="#E15B57"/></svg>
+    <span class="brand-sub">Quest</span>
+  </div>
+  <div class="pick-label" style="margin:14px 0 12px" id="tgLabel">Which team are you?</div>
+  <div class="tm-grid" id="teamPickGrid"></div>
+  <div class="gate-box" id="teamPinBox" style="display:none">
+    <div class="pick-label" style="margin-bottom:10px" id="tgTeamName">Team</div>
+    <input id="teamPinInput" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="••••" autocomplete="off" aria-label="Team PIN">
+    <div id="teamPinErr" class="pin-err">Wrong PIN — check your team group chat</div>
+    <button class="gate-btn" onclick="submitTeamPin()">Unlock</button>
+    <button class="gate-back" onclick="teamPickBack()">← Pick a different team</button>
+  </div>
+  <button class="gate-back" id="tgHome" onclick="backToLanding()">← Back</button>
+</div>
+
+<!-- ===================== TEAM APP ===================== -->
+<div id="teamApp">
+  <div class="topbar">
+    <div class="who">
+      <div class="dot" id="tDot"></div>
+      <div class="txt">
+        <div class="nm" id="tName">—</div>
+        <div class="role" id="tPts">—</div>
+      </div>
+    </div>
+    <button class="switch-btn" onclick="teamLogout()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      Exit
+    </button>
+  </div>
+  <section id="tview-clue" class="view active"></section>
+  <section id="tview-bonus" class="view"></section>
+  <section id="tview-board" class="view"></section>
+  <section id="tview-brag" class="view"></section>
+  <nav class="nav">
+    <button data-tview="clue" class="active" onclick="tgo('clue')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      Clue
+    </button>
+    <button data-tview="bonus" onclick="tgo('bonus')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 6.5 7 .9-5 4.8 1.2 7L12 18l-6.2 3.2L7 14.2 2 9.4l7-.9z"/></svg>
+      Bonus
+    </button>
+    <button data-tview="board" onclick="tgo('board')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4a2 2 0 0 0-2 2v9h4V9z"/><path d="M14 4h-4v16h4V4z"/><path d="M22 13h-2a2 2 0 0 0-2 2v5h4v-7z"/></svg>
+      Board
+    </button>
+    <button data-tview="brag" onclick="tgo('brag')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M8.2 12.5 7 22l5-2.6L17 22l-1.2-9.5"/></svg>
+      Brag
+    </button>
+  </nav>
+</div>
+
+<!-- ===================== TASKMASTER GATE ===================== -->
+<div id="gate" class="puzzle">
+  <div class="brand-mark">
+    <svg class="logo21" viewBox="0 0 100 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="30" cy="26" r="14.5" stroke="#E15B57" stroke-width="11"/><path d="M8 68H50V40Z" fill="#E15B57"/><path d="M60 68V22L90 2V68Z" fill="#E15B57"/></svg>
+    <span class="brand-sub">Quest</span>
+  </div>
+  <h1 class="display">The 21<span class="deg">°</span> Quest</h1>
+  <div class="login-tag">Taskmasters only</div>
+  <div class="gate-box">
+    <div class="pick-label" style="margin-bottom:10px">Enter the taskmaster code</div>
+    <input id="gateInput" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="••••" autocomplete="off" aria-label="Taskmaster code">
+    <div id="gateErr" class="pin-err">Wrong code — check the taskmaster group chat</div>
+    <button class="gate-btn" onclick="submitGate()">Unlock</button>
+    <div class="gate-note">Looking for the live scoreboard?<br>
+      <a id="gateTeamLink" class="gate-link" href="?tv" target="_blank" rel="noopener">Open the team link ↗</a>
+    </div>
+    <button class="gate-back" onclick="backToLanding()">← Back</button>
+  </div>
+</div>
+
+<div id="login" class="puzzle">
+  <div class="brand-mark">
+    <svg class="logo21" viewBox="0 0 100 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="30" cy="26" r="14.5" stroke="#E15B57" stroke-width="11"/><path d="M8 68H50V40Z" fill="#E15B57"/><path d="M60 68V22L90 2V68Z" fill="#E15B57"/></svg>
+    <span class="brand-sub">Quest</span>
+  </div>
+  <h1 class="display">The 21<span class="deg">°</span> Quest</h1>
+  <div class="login-tag">Taskmaster Scoreboard</div>
+  <div class="pick-label">Tap your name to start</div>
+  <div class="tm-grid" id="tmGrid"></div>
+  <button class="gate-back" style="max-width:440px" onclick="backToLanding()">← Back to start</button>
+  <div class="footer-note" style="margin-top:12px">Operation: Jeddah Park</div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app">
+  <div class="topbar">
+    <div class="who">
+      <div class="dot" id="topDot"></div>
+      <div class="txt">
+        <div class="nm" id="topName">—</div>
+        <div class="role" id="topRole">—</div>
+      </div>
+    </div>
+    <button class="switch-btn" onclick="logout()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      Switch
+    </button>
+  </div>
+
+  <!-- TEAM VIEW -->
+  <section id="view-team" class="view active"></section>
+  <!-- LEADERBOARD -->
+  <section id="view-board" class="view"></section>
+  <!-- RULES -->
+  <section id="view-rules" class="view"></section>
+  <!-- SETUP -->
+  <section id="view-setup" class="view"></section>
+  <!-- STATS -->
+  <section id="view-stats" class="view"></section>
+
+  <!-- BOTTOM NAV -->
+  <nav class="nav">
+    <button data-view="team" class="active" onclick="go('team')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Team
+    </button>
+    <button data-view="board" onclick="go('board')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4a2 2 0 0 0-2 2v9h4V9z"/><path d="M14 4h-4v16h4V4z"/><path d="M22 13h-2a2 2 0 0 0-2 2v5h4v-7z"/></svg>
+      Board
+    </button>
+    <button data-view="stats" onclick="go('stats')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 2v10l6.5 6.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>
+      Stats
+    </button>
+    <button data-view="rules" onclick="go('rules')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Rules
+    </button>
+    <button data-view="setup" onclick="go('setup')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Setup
+    </button>
+  </nav>
+</div>
+
+<!-- ===================== SPECTATOR (team link ?tv) ===================== -->
+<div id="spectator">
+  <div class="spec-top puzzle">
+    <div class="spec-brand">
+      <svg class="spec-logo" viewBox="0 0 100 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="30" cy="26" r="14.5" stroke="#E15B57" stroke-width="11"/><path d="M8 68H50V40Z" fill="#E15B57"/><path d="M60 68V22L90 2V68Z" fill="#E15B57"/></svg>
+      <div><div class="spec-title display">The 21° Quest</div><div class="spec-live"><span class="live-dot"></span> <span id="specLiveTxt">Live standings</span></div></div>
+    </div>
+    <div id="specCd"></div>
+    <div class="spec-tabs">
+      <button id="spTabBoard" class="on" onclick="specGo('board')">🏆 Leaderboard</button>
+      <button id="spTabStats" onclick="specGo('stats')">🔥 Stats</button>
+    </div>
+  </div>
+  <div id="spec-content"></div>
+  <div class="footer-note" style="padding:24px 0 40px">Jeddah Expats · The 21° Quest · updates live</div>
+</div>
+
+<!-- ===================== BRAG CARD overlay ===================== -->
+<div class="brag-back" id="bragBack" onclick="if(event.target===this)closeBrag()">
+  <div id="bragCardWrap"></div>
+  <button class="brag-close" onclick="closeBrag()">Close</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- undo bar -->
+<div class="undo-bar" id="undoBar">
+  <span id="undoText">Done</span>
+  <button onclick="doUndo()">Undo</button>
+</div>
+
+<canvas id="confetti"></canvas>
+
+<!-- lead PIN modal -->
+<div class="modal-back" id="pinBack" onclick="if(event.target===this)closePin()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-title display">Lead access</div>
+    <div class="modal-body">Enter the Lead PIN to unlock all-team editing and scoring controls.</div>
+    <input id="pinInput" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="••••" autocomplete="off" aria-label="Lead PIN">
+    <div id="pinErr" class="pin-err">Wrong PIN — try again</div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="modal-cancel" onclick="closePin()">Cancel</button>
+      <button class="modal-confirm" onclick="submitPin()">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- confirm modal -->
+<div class="modal-back" id="modalBack" onclick="if(event.target===this)closeModal()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-title display" id="modalTitle">Are you sure?</div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" id="modalConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   THE 21° QUEST — TASKMASTER SCOREBOARD
+   Vanilla JS. Local-first, upgrades to live Firebase sync automatically.
+   ===================================================================== */
+
+/* ---------- Challenge definitions (order = play order) ---------- */
+const CHALLENGES = [
+  {id:'c1', name:'Showroom',    loc:'Hyundai Showroom',       limit:15, verify:'Business card from a salesperson in hand',
+   riddle:'Two legs carried you this far. Now seek the machines that conquered distance.\nClimb higher in your journey.\n\nFind a keeper of horsepower and leave with solid proof that you met the guardian.',
+   task:'Obtain a business card from a salesperson.',
+   bonus:{type:'toggle', key:'proof',      label:'Business card / physical proof', ptsKey:'proof'}},
+  {id:'c2', name:'Odyssey',     loc:'VOX Cinemas',            limit:10, verify:'Team photo beside the Odyssey poster — whole team in frame',
+   riddle:'He crossed seas and survived impossible odds.\n\nHis name is now returning after millennia.\nFind his latest voyage and be with him on his journey as a team.',
+   task:'Take a team photo beside the poster for his latest voyage. Whole team in frame.',
+   bonus:{type:'toggle', key:'noFullTeam', label:'Whole team NOT in the photo',   ptsKey:'noFullTeam', danger:true}},
+  {id:'c3', name:'Daiso',       loc:'Daiso / Mumuso / Miniso',limit:15, verify:'Wet wipes bought + receipt. Count the change from 10 SAR',
+   riddle:'Seek the place where 10 riyals feel like treasure. Where abundance masquerades as affordability. Where aisles are crowded but wallets remain untroubled.\n\nA place where logic goes on vacation and ten minutes later you\u2019re carrying items you cannot explain.',
+   task:'With your budget of 10 SAR, purchase what every traveller keeps close \u2014 for journeys are rarely kind to dirty hands.\n\nWhatever you save goes towards your final score.',
+   bonus:{type:'count',  key:'sarSaved',   label:'SAR saved (of 10)',  perKey:'daisoPerSar', max:10}},
+  {id:'c4', name:'Danube',      loc:'Danube',                 limit:15, verify:'Photos of all 10 categories + a team pose',
+   riddle:'Seek the place where dinner begins,\nYet no meals are served at your table.\nA famous waterway lends me its name,\nBut my shelves are dry and full of goods.',
+   task:'Capture evidence within 10 categories before moving on:\n1. Fruit  2. Vegetable  3. Dairy  4. Frozen  5. Bakery\n6. Cleaning  7. Drinks  8. Snacks  9. Spices  10. Personal Care\n\nStrike a pose with friends.',
+   bonus:{type:'count',  key:'categories', label:'Categories photographed', perKey:'danubePerCat', max:10}},
+  {id:'c5', name:'Arcade',      loc:'Arcade',                 limit:15, verify:'Played a moderator at foosball / air hockey',
+   riddle:'Not every battle requires swords.\nSome wars are fought by spinning rods on a battlefield.\n\nSeek the arena where age shows no number.',
+   task:'Challenge a moderator to a game of foosball or air hockey.\n\nTaking part completes the challenge \u2014 victory earns bonus points.',
+   bonus:{type:'toggle', key:'beatMod',    label:'Beat the moderator', ptsKey:'arcadeWin'}},
+  {id:'c6', name:'SAR 21 Hunt', loc:'The whole mall',         limit:30, verify:'Photo evidence of each item priced exactly SAR 21',
+   riddle:'Many treasures fill this grand bazaar,\nBut seek the ones worth twenty-one riyals.\nTravel far and wide, count your discoveries carefully.',
+   task:'Find the most items priced at exactly SAR 21.\n\nCapture evidence of your findings.',
+   bonus:{type:'count',  key:'items21',    label:'Items priced SAR 21', perKey:'sar21PerItem', max:99}},
+  {id:'c7', name:'Find the CC', loc:'Final destination',      limit:15, verify:'Team arrived at the correct final location',
+   riddle:'The answer has been with you all along.\nLook beyond the clues you\u2019ve solved.\n\nHidden throughout these pages is the key to your final destination.',
+   task:'Find the CC.',
+   bonus:null}
+];
+
+/* ---------- Bonus challenges shown to teams — each unlocked by a small riddle ---------- */
+const TEAM_BONUS_LIST = [
+  {key:'toilet', p:'1 pt',
+   riddle:'Everybody visits me, nobody admits it.\nI have stalls, but I sell nothing at all.',
+   answers:['toilet','toilets','bathroom','restroom','washroom','wc','loo'],
+   t:'Take a selfie in the toilet.'},
+  {key:'icecream', p:'1 pt',
+   riddle:'I am sweet and cold and I never last long.\nHold me too long and I am gone.',
+   answers:['ice cream','icecream','ice-cream','gelato','icecreams','ice creams'],
+   t:'Get an ice-cream sample and take a picture with it before you eat it.'},
+  {key:'fiveLetterStore', p:'1 pt per store',
+   riddle:'QUEST. SMILE. PARTY.\nHow many letters do they each carry?',
+   answers:['5','five'],
+   t:'Take a team photo in front of stores whose names have exactly 5 letters. One point per store.'},
+  {key:'danubeLetters', p:'1 pt total',
+   riddle:'Your parents gave it to you the day you arrived.\nEvery letter of it is hiding on a shelf somewhere.',
+   answers:['name','names','your name','our names','my name'],
+   t:'Find a product beginning with every letter in your team members\u2019 names.'},
+  {key:'groupPhoto', p:'1 pt · double it with a selfie',
+   riddle:'To all be in the picture at once,\nyou must trust your phone to one of these.',
+   answers:['stranger','strangers','a stranger','someone','somebody','someone else','person'],
+   t:'Ask someone to take your group photo.\n\nDouble your points if you get that person into a selfie with you.'},
+  {key:'matchTesters', p:'1 pt',
+   riddle:'I am invisible, but you know when I have walked past.\nA thin strip of paper can carry me.',
+   answers:['perfume','perfumes','scent','fragrance','smell','cologne','parfum'],
+   t:'Get 3 paper testers from MATCH with the name of the perfume written on each strip.'},
+  {key:'cc', p:'1 pt each · 7 to find',
+   riddle:'Seven of us made today happen.\nWe are not competing \u2014 we are hiding in plain sight.',
+   answers:['committee','core committee','cc','the committee','organisers','organizers','core committee members'],
+   t:'Collect a short video of each core committee member. Seven to find.'}
+];
+
+/* ---------- Default point values (all editable in Setup) ---------- */
+const DEFAULT_POINTS = {
+  base:[50,40,30,20,10],   // by finish rank per challenge
+  hint:5,                  // deducted per hint
+  timeOver:5,              // deducted if over the time limit
+  proof:5,                 // Showroom bonus
+  noFullTeam:5,            // Odyssey deduction (applied as minus)
+  daisoPerSar:1,           // Daiso: per SAR saved
+  danubePerCat:1,          // Danube: per category
+  arcadeWin:10,            // Arcade: beat the mod  (slide said +2 — editable here)
+  sar21PerItem:10,         // SAR 21 hunt: per item
+  ccPerMember:1,           // per core-committee video
+  sub:{ toilet:1, icecream:1, fiveLetterStore:1, danubeLetters:1, groupPhoto:1, matchTesters:1 }
+};
+
+/* ---------- Team-level bonus sub-challenges ---------- */
+const SUBS = [
+  {key:'toilet',          label:'Selfie in the toilet',                     hint:'1 pt'},
+  {key:'icecream',        label:'Ice-cream sample pic before eating',       hint:'1 pt'},
+  {key:'fiveLetterStore', label:'Team photo at 5-letter-name stores',       hint:'1 pt each', count:true, max:20},
+  {key:'danubeLetters',   label:'Danube product for every letter in names', hint:'1 pt'},
+  {key:'groupPhoto',      label:'Ask someone to take your group photo',     hint:'1 pt · ×2 if selfie', selfie:true},
+  {key:'matchTesters',    label:'3 paper testers from MATCH (named)',       hint:'1 pt'}
+];
+
+/* ---------- Default config (pre-seeded, all editable) ---------- */
+const DEFAULT_CONFIG = {
+  points: DEFAULT_POINTS,
+  teams: {
+    A:{name:'Team A', pin:'4827', color:'#E15B57', taskmaster:'Abdullah', roster:['Rishi Jain','Syed Ahmed','Murtaza Raees','Fdhael Ali','Alaa Alsawadi']},
+    B:{name:'Team B', pin:'1936', color:'#2FA36B', taskmaster:'Imad',     roster:['M. Shaban Shazad','Usman Akram','Zain Imran','Noor','Amtul Shaafi Hanaa']},
+    C:{name:'Team C', pin:'7215', color:'#E0A458', taskmaster:'Taseen',   roster:['Ibrahim Irfan Syed','Akram Barnawi','Ahmad Noor','Farhin Islam','Hanan']},
+    D:{name:'Team D', pin:'5384', color:'#5B8DEF', taskmaster:'Sarah N.', roster:['Zaki Ahmed','Talha Waheed','Abdulmalik Mahmood','Mohammed Abdulla','Aysha']},
+    E:{name:'Team E', pin:'9061', color:'#B061C9', taskmaster:'Sara H.',  roster:['Ahmed Irfan','Osama Khan','Afaak Qureshi','Malahat Zafar','Madina Zafar']}
+  },
+  lead:'Lead / Roaming',   // 6th taskmaster — sees & edits everything
+  questEnded:false,        // when the Lead flips this true, the public link unlocks full stats + real names
+  questStart:null,         // set when the Lead starts the Quest — drives the countdown
+  questMinutes:120         // overall window (2 hours)
+};
+
+const TEAM_IDS = ['A','B','C','D','E'];
+
+/* ---------- State ---------- */
+let CONFIG = clone(DEFAULT_CONFIG);
+let SCORES = {};            // { A:{ ch:{c1:{...}}, bonus:{...} }, ... }
+let ME = null;              // { name, team|null, isLead }
+let currentView = 'team';
+let tickTimer = null;
+let db = null, LIVE = false, dbRef = null;
+let ONLINE = true;          // Firebase connection state
+let wakeLock = null;        // keeps the screen awake while a timer runs
+// spectator / team link:  add ?tv (or ?screen) to the URL for a read-only live board
+const SPECTATOR = /[?&](tv|screen|board)\b/.test(location.search) || location.hash==='#tv';
+
+/* ---------- Safe localStorage (won't crash in sandboxes) ---------- */
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function blankTeamScore(){
+  const ch={}; CHALLENGES.forEach(c=>{ ch[c.id]={start:null,end:null,hints:0,timeOverOff:false,extra:0,extraNote:'',bonus:0,bonusOn:false,selfie:false}; });
+  return { ch, bonus:{ sub:{}, ccVideos:0, modPoints:0, unlocked:{} } };
+}
+function ensureScores(){
+  TEAM_IDS.forEach(t=>{ if(!SCORES[t]) SCORES[t]=blankTeamScore(); });
+}
+
+/* =====================================================================
+   DATA LAYER  (local first; live if Firebase config present)
+   ===================================================================== */
+function initData(){
+  // always seed from the device first, so a refresh with no signal still shows the race
+  const saved = lsGet('quest21');
+  if(saved){ try{ const d=JSON.parse(saved); CONFIG=mergeConfig(d.config||{}); SCORES=d.scores||{}; }catch(e){} }
+  ensureScores();
+
+  const hasCfg = FIREBASE_CONFIG && FIREBASE_CONFIG.databaseURL;
+  if(hasCfg && typeof firebase !== 'undefined'){
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.database();
+      dbRef = db.ref('quest21');
+      LIVE = true;
+      dbRef.on('value', snap=>{
+        const data = snap.val() || {};
+        if(data.config) CONFIG = mergeConfig(data.config);
+        if(data.scores) SCORES = data.scores;
+        ensureScores();
+        saveLocal();                 // keep a device copy of whatever the server says
+        if(!data.config){ pushConfig(); }
+        renderAll();
+      });
+      // watch the connection so we can tell the taskmaster the truth
+      db.ref('.info/connected').on('value', s=>{
+        ONLINE = s.val()===true;
+        setConn(ONLINE?'live':'offline', ONLINE?'● Live — synced':'● Offline — saving on phone');
+        if(!SPECTATOR) renderAll();
+      });
+      setConn('live','● Live — synced');
+      return;
+    }catch(e){ console.warn('Firebase failed, using local mode', e); }
+  }
+  // local mode
+  LIVE = false;
+  setConn('local','● On this device only');
+}
+function mergeConfig(c){
+  const base = clone(DEFAULT_CONFIG);
+  if(c.lead) base.lead = c.lead;
+  base.questEnded = !!c.questEnded;
+  base.questStart = c.questStart || null;
+  base.questMinutes = c.questMinutes || 120;
+  if(c.points) base.points = Object.assign({}, DEFAULT_POINTS, c.points, {sub:Object.assign({}, DEFAULT_POINTS.sub, c.points.sub||{}), base:c.points.base||DEFAULT_POINTS.base});
+  if(c.teams){ TEAM_IDS.forEach(t=>{ if(c.teams[t]) base.teams[t]=Object.assign({}, base.teams[t], c.teams[t]); }); }
+  return base;
+}
+function saveLocal(){ lsSet('quest21', JSON.stringify({config:CONFIG, scores:SCORES})); }
+
+function pushScores(){
+  saveLocal();                                   // device copy first — never lose a time
+  if(LIVE && dbRef){ dbRef.child('scores').set(SCORES); }
+  flashSaved();
+}
+function pushConfig(){
+  saveLocal();
+  if(LIVE && dbRef){ dbRef.child('config').set(CONFIG); }
+  flashSaved();
+}
+// single atomic write — use when config AND scores change together, so the
+// live listener can't fire in between and overwrite one with stale data
+function pushAll(){
+  saveLocal();
+  if(LIVE && dbRef){ dbRef.update({scores:SCORES, config:CONFIG}); }
+  flashSaved();
+}
+let _savedT=null;
+function flashSaved(){
+  if(SPECTATOR) return;
+  const p=document.getElementById('connPill');
+  if(!p) return;
+  if(LIVE && !ONLINE){ setConn('offline','● Offline — saving on phone'); return; }
+  p.className='conn-pill saved'; p.textContent='✓ Saved';
+  clearTimeout(_savedT);
+  _savedT=setTimeout(()=>{
+    if(LIVE) setConn(ONLINE?'live':'offline', ONLINE?'● Live — synced':'● Offline — saving on phone');
+    else setConn('local','● On this device only');
+  },1400);
+}
+function setConn(cls,txt){ const p=document.getElementById('connPill'); p.className='conn-pill '+cls; p.textContent=txt; }
+
+/* =====================================================================
+   SCORING ENGINE
+   ===================================================================== */
+function elapsedMs(cs){ if(cs&&cs.start&&cs.end) return Math.max(0, cs.end-cs.start); return null; }
+function elapsedMin(cs){ const ms=elapsedMs(cs); return ms==null?null:ms/60000; }
+
+// finish-rank base points for each team on each challenge (only teams that finished)
+function baseByRank(){
+  const out={}; TEAM_IDS.forEach(t=>out[t]={});
+  CHALLENGES.forEach(c=>{
+    const finished=[];
+    TEAM_IDS.forEach(t=>{ const cs=SCORES[t]?.ch?.[c.id]; const ms=elapsedMs(cs); if(ms!=null) finished.push({t,ms}); });
+    finished.sort((a,b)=>a.ms-b.ms);
+    finished.forEach((f,i)=>{ out[f.t][c.id] = CONFIG.points.base[i] ?? CONFIG.points.base[CONFIG.points.base.length-1]; });
+  });
+  return out;
+}
+
+function challengeBonus(c, cs){
+  if(!c.bonus || !cs) return 0;
+  const P=CONFIG.points;
+  if(c.bonus.type==='toggle'){
+    if(!cs.bonusOn) return 0;
+    const v = P[c.bonus.ptsKey] || 0;
+    return c.bonus.danger ? -v : v;
+  }
+  if(c.bonus.type==='count'){
+    return (cs.bonus||0) * (P[c.bonus.perKey]||0);
+  }
+  return 0;
+}
+
+function challengeScore(c, cs, base){
+  const P=CONFIG.points;
+  let pts = base||0;
+  pts += challengeBonus(c, cs);
+  pts -= (cs.hints||0) * P.hint;
+  const over = isOver(c, cs) && !cs.timeOverOff;
+  if(over) pts -= P.timeOver;
+  pts += (cs.extra||0);
+  return pts;
+}
+function isOver(c, cs){ const m=elapsedMin(cs); return m!=null && m > c.limit; }
+
+function teamBonusScore(t){
+  const b = SCORES[t]?.bonus || {sub:{},ccVideos:0,modPoints:0};
+  const P=CONFIG.points; let pts=0;
+  SUBS.forEach(s=>{
+    const raw = b.sub?.[s.key];
+    if(s.count){ pts += (raw||0) * (P.sub[s.key]||1); }
+    else if(s.selfie){ if(raw){ pts += (P.sub[s.key]||1) * (b.sub?.[s.key+'_selfie'] ? 2 : 1); } }
+    else { if(raw) pts += (P.sub[s.key]||1); }
+  });
+  pts += (b.ccVideos||0) * P.ccPerMember;
+  pts += (b.modPoints||0);
+  return pts;
+}
+
+function teamTotal(t, baseMap){
+  let total=0;
+  CHALLENGES.forEach(c=>{ total += challengeScore(c, SCORES[t].ch[c.id], baseMap[t][c.id]||0); });
+  total += teamBonusScore(t);
+  return total;
+}
+function teamBreakdown(t, baseMap){
+  const lines=[]; let done=0;
+  CHALLENGES.forEach(c=>{
+    const cs=SCORES[t].ch[c.id];
+    const finished = elapsedMs(cs)!=null;
+    if(finished) done++;
+    const val = finished ? challengeScore(c,cs,baseMap[t][c.id]||0) : null;
+    lines.push({label:c.name, val, muted:!finished});
+  });
+  const bonus=teamBonusScore(t);
+  lines.push({label:'Bonuses', val:bonus, muted:false, bonus:true});
+  return {lines, done};
+}
+
+/* =====================================================================
+   LOGIN
+   ===================================================================== */
+function renderLogin(){
+  const grid=document.getElementById('tmGrid');
+  grid.innerHTML='';
+  TEAM_IDS.forEach(t=>{
+    const tm=CONFIG.teams[t];
+    const b=document.createElement('button');
+    b.className='tm-btn';
+    b.innerHTML=`<span class="dot" style="background:${tm.color}">${t}</span>
+      <span class="nm">${esc(tm.taskmaster||('Taskmaster '+t))}</span>
+      <span class="tm-team">${esc(tm.name)}</span>`;
+    b.onclick=()=>login({name:tm.taskmaster||('Taskmaster '+t), team:t, isLead:false});
+    grid.appendChild(b);
+  });
+  const lead=document.createElement('button');
+  lead.className='tm-btn lead';
+  lead.innerHTML=`<span class="dot" style="background:#E15B57">★</span>
+    <span class="nm">${esc(CONFIG.lead||'Lead / Roaming')}</span>
+    <span class="tm-team">Sees & edits all teams</span>`;
+  lead.onclick=()=>askLeadPin();
+  grid.appendChild(lead);
+}
+/* ---------- countdown ---------- */
+function questRemainingMs(){
+  if(!CONFIG.questStart) return null;
+  const total=(CONFIG.questMinutes||120)*60000;
+  return (CONFIG.questStart + total) - Date.now();
+}
+function fmtCountdown(ms){
+  const over=ms<0; const a=Math.abs(ms);
+  const h=Math.floor(a/3600000), m=Math.floor((a%3600000)/60000), s=Math.floor((a%60000)/1000);
+  const txt=(h>0?h+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  return (over?'+':'')+txt;
+}
+function countdownClass(ms){ if(ms==null) return ''; if(ms<0) return 'over'; if(ms<15*60000) return 'warn'; return ''; }
+function countdownHTML(cls){
+  const ms=questRemainingMs();
+  if(ms==null) return '';
+  return `<div class="${cls} ${countdownClass(ms)}" id="cdBox">
+    <div><div class="cd-num" id="cdNum">${fmtCountdown(ms)}</div><div class="cd-lbl">${ms<0?'over time':'remaining'}</div></div></div>`;
+}
+
+/* ---------- confetti (finale) ---------- */
+let _confettiRun=false;
+function fireConfetti(){
+  if(_confettiRun) return; _confettiRun=true;
+  const cv=document.getElementById('confetti');
+  cv.classList.add('show');
+  const ctx=cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  cv.width=innerWidth*dpr; cv.height=innerHeight*dpr; ctx.scale(dpr,dpr);
+  const colors=['#E15B57','#8FCBA0','#57BE84','#FCEBD5','#E0A458','#fff'];
+  const bits=[];
+  for(let i=0;i<130;i++) bits.push({
+    x:Math.random()*innerWidth, y:-20-Math.random()*innerHeight*0.6,
+    w:5+Math.random()*7, h:8+Math.random()*8,
+    c:colors[(Math.random()*colors.length)|0],
+    vy:2+Math.random()*3.4, vx:-1.2+Math.random()*2.4,
+    rot:Math.random()*6.28, vr:-0.16+Math.random()*0.32
+  });
+  const t0=Date.now();
+  (function frame(){
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    bits.forEach(b=>{
+      b.x+=b.vx; b.y+=b.vy; b.rot+=b.vr;
+      ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.rot);
+      ctx.fillStyle=b.c; ctx.fillRect(-b.w/2,-b.h/2,b.w,b.h); ctx.restore();
+    });
+    if(Date.now()-t0 < 5200) requestAnimationFrame(frame);
+    else { ctx.clearRect(0,0,innerWidth,innerHeight); cv.classList.remove('show'); _confettiRun=false; }
+  })();
+}
+function teamLinkURL(){ return location.origin + location.pathname + '?tv'; }
+function teamLinkCardHTML(){
+  const url=teamLinkURL();
+  return `<div class="card">
+    <h3>Team link</h3>
+    <div class="card-sub">Read-only live scoreboard — safe to share with participants</div>
+    <div class="link-box"><code>${esc(url)}</code></div>
+    <div class="link-actions">
+      <button class="link-share" onclick="shareTeamLink()">📤 Share</button>
+      <a class="link-open" href="${esc(url)}" target="_blank" rel="noopener">↗ Open</a>
+    </div>
+  </div>`;
+}
+function shareTeamLink(){
+  const url=teamLinkURL();
+  const payload={title:'The 21° Quest — Live Scoreboard', text:'Follow the live scoreboard 🧭', url:url};
+  if(navigator.share){
+    navigator.share(payload).catch(()=>{});
+    return;
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(()=>toast('Link copied ✓')).catch(()=>fallbackCopy(url));
+  } else { fallbackCopy(url); }
+}
+function fallbackCopy(url){
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=url; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); toast('Link copied ✓');
+  }catch(e){ toast('Copy failed — long-press the link above'); }
+}
+/* =====================================================================
+   LANDING / TEAM APP
+   ===================================================================== */
+let MYTEAM = null, tView='clue';
+
+function showEl(id,on,flex){ const e=document.getElementById(id); if(e) e.style.display = on ? (flex||'block') : 'none'; }
+function hideAllShells(){
+  ['landing','teamGate'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  document.getElementById('gate').classList.remove('show');
+  showEl('login',false); showEl('app',false); showEl('teamApp',false); showEl('spectator',false);
+}
+function backToLanding(){
+  // full lock: role, taskmaster code, team PIN and any signed-in identity
+  lsSet('quest21_role','');
+  lsSet('quest21_gate','');
+  lsSet('quest21_team','');
+  lsSet('quest21_me','');
+  ME=null; MYTEAM=null; leadTeam=null;
+  hideAllShells();
+  document.getElementById('landing').classList.add('show');
+}
+function chooseRole(r){
+  lsSet('quest21_role', r);
+  if(r==='tm'){ hideAllShells(); if(gateUnlocked()) startApp(); else showGate(); }
+  else { hideAllShells(); showTeamGate(); }
+}
+
+/* ---------- team picker + pin ---------- */
+let _pendingTeam=null;
+function showTeamGate(){
+  _pendingTeam=null;
+  hideAllShells();
+  document.getElementById('teamGate').classList.add('show');
+  document.getElementById('teamPinBox').style.display='none';
+  document.getElementById('tgLabel').style.display='';
+  document.getElementById('tgHome').style.display='';
+  const grid=document.getElementById('teamPickGrid');
+  grid.style.display='';
+  grid.innerHTML='';
+  TEAM_IDS.forEach(t=>{
+    const tm=CONFIG.teams[t];
+    const b=document.createElement('button');
+    b.className='tm-btn';
+    b.innerHTML=`<span class="dot" style="background:${tm.color}">${t}</span><span class="nm">${esc(tm.name)}</span>`;
+    b.onclick=()=>pickTeam(t);
+    grid.appendChild(b);
+  });
+}
+function pickTeam(t){
+  _pendingTeam=t;
+  document.getElementById('teamPickGrid').style.display='none';
+  document.getElementById('tgLabel').style.display='none';
+  document.getElementById('tgHome').style.display='none';
+  document.getElementById('tgTeamName').textContent=CONFIG.teams[t].name;
+  const box=document.getElementById('teamPinBox');
+  box.style.display='block';
+  document.getElementById('teamPinErr').classList.remove('show');
+  const i=document.getElementById('teamPinInput'); i.value='';
+  setTimeout(()=>i.focus(),150);
+}
+function teamPickBack(){ showTeamGate(); }
+function submitTeamPin(){
+  const v=(document.getElementById('teamPinInput').value||'').trim();
+  const want=String(CONFIG.teams[_pendingTeam].pin||'');
+  if(v===want){ lsSet('quest21_team', _pendingTeam); teamLogin(_pendingTeam); }
+  else { document.getElementById('teamPinErr').classList.add('show'); document.getElementById('teamPinInput').value=''; }
+}
+function teamLogin(t){
+  MYTEAM=t;
+  hideAllShells();
+  showEl('teamApp',true);
+  const tm=CONFIG.teams[t];
+  const dot=document.getElementById('tDot'); dot.style.background=tm.color; dot.textContent=t;
+  document.getElementById('tName').textContent=tm.name;
+  tgo(tView||'clue');
+  renderTeamApp();
+}
+function teamLogout(){
+  MYTEAM=null; lsSet('quest21_team',''); lsSet('quest21_role','');
+  backToLanding();
+}
+function tgo(v){
+  tView=v;
+  document.querySelectorAll('#teamApp .view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tview-'+v).classList.add('active');
+  document.querySelectorAll('#teamApp .nav button').forEach(b=>b.classList.toggle('active', b.dataset.tview===v));
+  window.scrollTo(0,0);
+  lsSet('quest21_tview', v);
+  renderTeamApp();
+}
+
+/* ---------- which clue is this team on? ---------- */
+function currentClueIdx(t){
+  // the clue that is currently running (started, not stopped)
+  for(let i=0;i<CHALLENGES.length;i++){
+    const cs=SCORES[t].ch[CHALLENGES[i].id];
+    if(cs.start && !cs.end) return i;
+  }
+  return -1;
+}
+function completedCount(t){
+  return CHALLENGES.filter(c=>elapsedMs(SCORES[t].ch[c.id])!=null).length;
+}
+function renderTeamApp(){
+  if(!MYTEAM) return;
+  const t=MYTEAM, baseMap=baseByRank();
+  document.getElementById('tPts').textContent = teamTotal(t,baseMap)+' pts · '+completedCount(t)+'/7 done';
+  if(tView==='clue')  document.getElementById('tview-clue').innerHTML  = clueHTML(t);
+  if(tView==='bonus') document.getElementById('tview-bonus').innerHTML = teamBonusHTML();
+  if(tView==='board') document.getElementById('tview-board').innerHTML =
+    `<h2 class="view-title display">Leaderboard</h2><div class="view-sub">Live · updates as teams finish</div>${boardHTML({spectator:true})}`;
+  if(tView==='brag') document.getElementById('tview-brag').innerHTML =
+    `<h2 class="view-title display">Brag Card</h2><div class="view-sub">Screenshot it and drop it in the group chat 📸</div>
+     <div style="max-width:360px;margin:0 auto">${bragCardHTML(t)}</div>
+     <div class="footer-note">Badges update live as you play</div>`;
+}
+function clueHTML(t){
+  const idx=currentClueIdx(t);
+  const done=completedCount(t);
+  let prog='';
+  CHALLENGES.forEach((c,i)=>{
+    const cs=SCORES[t].ch[c.id];
+    const isDone=elapsedMs(cs)!=null;
+    prog+=`<i class="${isDone?'done':(i===idx?'now':'')}">${isDone?'✓':(i+1)}</i>`;
+  });
+
+  // total quest countdown
+  const qms=questRemainingMs();
+  const qBox = qms==null ? '' :
+    `<div class="ct-box ${countdownClass(qms)}"><div class="ct-num" id="cdNum">${fmtCountdown(qms)}</div><div class="ct-lbl">${qms<0?'over time':'quest left'}</div></div>`;
+
+  if(idx<0){
+    const allDone = done>=CHALLENGES.length;
+    const body = allDone
+      ? `<div class="clue-wait"><div class="cw-ic">🏁</div><div class="cw-t">You made it!</div><div class="cw-s">All checkpoints complete.<br>Sit tight for the final results.</div></div>`
+      : (done>0
+        ? `<div class="clue-done"><div class="cd-t">✓ Checkpoint ${done} complete</div><div class="cd-s">Nice work — your next clue appears the moment your taskmaster starts it.</div></div>
+           <div class="clue-wait"><div class="cw-ic">⏳</div><div class="cw-t">Waiting for your next clue</div><div class="cw-s">Stay together and keep this page open.</div></div>`
+        : `<div class="clue-wait"><div class="cw-ic">🧭</div><div class="cw-t">The Quest hasn't started</div><div class="cw-s">Your first clue appears here the moment you're released.<br>Keep this page open.</div></div>`);
+    return `<h2 class="view-title display">Your Clue</h2><div class="view-sub">${esc(CONFIG.teams[t].name)}</div>
+      ${qms==null?'':`<div class="clue-timer" style="margin-bottom:14px">${qBox}</div>`}
+      ${body}<div class="mini-prog">${prog}</div>
+      <div class="footer-note">Checkpoints stamped by your taskmaster</div>`;
+  }
+
+  const c=CHALLENGES[idx], cs=SCORES[t].ch[c.id];
+  const elapsed=Date.now()-cs.start;
+  const left=(c.limit*60000)-elapsed;
+  const cls = left<0?'over':(left<120000?'warn':'');
+  return `<h2 class="view-title display">Your Clue</h2><div class="view-sub">${esc(CONFIG.teams[t].name)}</div>
+    <div class="clue-card">
+      <div class="clue-top puzzle">
+        <div class="ct-n">Checkpoint ${idx+1} of ${CHALLENGES.length}</div>
+        <div class="ct-t">Decode it</div>
+        <div class="clue-timer">
+          <div class="ct-box"><div class="ct-num" id="chElapsed" data-start="${cs.start}">${fmtDur(elapsed)}</div><div class="ct-lbl">on this one</div></div>
+          <div class="ct-box ${cls}"><div class="ct-num" id="chLeft" data-start="${cs.start}" data-limit="${c.limit}">${fmtCountdown(left)}</div><div class="ct-lbl">${left<0?'over limit':'limit left'}</div></div>
+          ${qBox}
+        </div>
+      </div>
+      <div class="clue-body">
+        <div class="riddle">${esc(c.riddle||'')}</div>
+        <div class="clue-div"></div>
+        <div class="task-lbl">Your task</div>
+        <div class="task-tx">${esc(c.task||'')}</div>
+      </div>
+    </div>
+    <div class="mini-prog">${prog}</div>
+    <div class="footer-note">Hints cost 5 points · ask your taskmaster</div>`;
+}
+function normAns(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function bonusUnlocked(t,key){ return !!(SCORES[t] && SCORES[t].bonus && SCORES[t].bonus.unlocked && SCORES[t].bonus.unlocked[key]); }
+function tryUnlock(key){
+  const t=MYTEAM; if(!t) return;
+  const b=TEAM_BONUS_LIST.find(x=>x.key===key); if(!b) return;
+  const inp=document.getElementById('ans-'+key);
+  const guess=normAns(inp?inp.value:'');
+  if(!guess) return;
+  const ok=b.answers.some(a=>normAns(a)===guess);
+  if(ok){
+    SCORES[t].bonus.unlocked = SCORES[t].bonus.unlocked || {};
+    SCORES[t].bonus.unlocked[key]=true;
+    buzz([25,60,25]);
+    pushScores();
+    renderTeamApp();
+    toast('Unlocked! 🔓');
+  } else {
+    buzz(60);
+    const err=document.getElementById('err-'+key);
+    if(err) err.classList.add('show');
+    if(inp){ inp.value=''; inp.focus(); }
+  }
+}
+function teamBonusHTML(){
+  const t=MYTEAM;
+  const total=TEAM_BONUS_LIST.length;
+  const got=TEAM_BONUS_LIST.filter(b=>bonusUnlocked(t,b.key)).length;
+  let rows='';
+  TEAM_BONUS_LIST.forEach((b,i)=>{
+    const open=bonusUnlocked(t,b.key);
+    if(open){
+      rows+=`<div class="bcard open">
+        <div class="bc-head"><span class="bc-n done">✓</span><span class="bc-st">Unlocked</span><span class="bc-p">${esc(b.p)}</span></div>
+        <div class="bc-task">${esc(b.t)}</div>
+      </div>`;
+    } else {
+      rows+=`<div class="bcard">
+        <div class="bc-head"><span class="bc-n">${i+1}</span><span class="bc-st locked">🔒 Locked</span><span class="bc-p">${esc(b.p)}</span></div>
+        <div class="bc-riddle">${esc(b.riddle)}</div>
+        <div class="bc-form">
+          <input id="ans-${b.key}" class="bc-input" type="text" placeholder="your answer" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="answer">
+          <button class="bc-go" onclick="tryUnlock('${b.key}')">Unlock</button>
+        </div>
+        <div id="err-${b.key}" class="pin-err" style="text-align:left">Not quite — try again</div>
+      </div>`;
+    }
+  });
+  return `<h2 class="view-title display">Bonus</h2>
+    <div class="view-sub">Solve the riddle to unlock each bonus · ${got}/${total} open</div>
+    ${rows}
+    <div class="reminder" style="margin-top:14px">Show your taskmaster the proof to claim the points.</div>
+    <div class="footer-note">Unlock them in any order · no penalty for guessing</div>`;
+}
+function gateUnlocked(){ return lsGet('quest21_gate')===String(TASKMASTER_CODE); }
+function showGate(){
+  hideAllShells();
+  document.getElementById('gate').classList.add('show');
+  setTimeout(()=>{ const i=document.getElementById('gateInput'); if(i) i.focus(); },200);
+}
+function submitGate(){
+  const v=(document.getElementById('gateInput').value||'').trim();
+  if(v===String(TASKMASTER_CODE)){
+    lsSet('quest21_gate', v);
+    document.getElementById('gate').classList.remove('show');
+    document.getElementById('login').style.display='flex';
+    startApp();
+  } else {
+    document.getElementById('gateErr').classList.add('show');
+    document.getElementById('gateInput').value='';
+  }
+}
+function lockApp(){
+  openConfirm('Lock this phone?','You\'ll need the taskmaster code again to get back in. Use this if you\'re handing the phone to someone else.','Lock',
+    ()=>{ lsSet('quest21_gate',''); lsSet('quest21_me',''); location.reload(); });
+}
+function startApp(){
+  hideAllShells();
+  showEl('login',true,'flex');   // ← without this every shell stays hidden = blank page
+  renderLogin();
+  try{
+    const savedMe=lsGet('quest21_me');
+    if(savedMe){ const who=JSON.parse(savedMe); if(who&&who.name){ login(who); restoreUI(); } }
+  }catch(e){}
+}
+function askLeadPin(){
+  const inp=document.getElementById('pinInput');
+  inp.value=''; document.getElementById('pinErr').classList.remove('show');
+  document.getElementById('pinBack').classList.add('show');
+  setTimeout(()=>inp.focus(),150);
+}
+function closePin(){ document.getElementById('pinBack').classList.remove('show'); }
+function submitPin(){
+  const v=(document.getElementById('pinInput').value||'').trim();
+  if(v===String(LEAD_PIN)){
+    closePin();
+    login({name:CONFIG.lead||'Lead / Roaming', team:null, isLead:true});
+  } else {
+    document.getElementById('pinErr').classList.add('show');
+    document.getElementById('pinInput').value='';
+  }
+}
+function login(who){
+  ME=who; lsSet('quest21_me', JSON.stringify(who));
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  const dot=document.getElementById('topDot');
+  if(who.isLead){ dot.style.background='#E15B57'; dot.textContent='★'; }
+  else { dot.style.background=CONFIG.teams[who.team].color; dot.textContent=who.team; }
+  document.getElementById('topName').textContent=who.name;
+  document.getElementById('topRole').textContent = who.isLead ? 'Lead taskmaster' : CONFIG.teams[who.team].name;
+  go(who.isLead ? 'board' : 'team');
+  renderAll();
+}
+function logout(){
+  ME=null; lsSet('quest21_me','');
+  document.getElementById('app').style.display='none';
+  document.getElementById('login').style.display='flex';
+  renderLogin();
+}
+
+/* =====================================================================
+   NAV
+   ===================================================================== */
+function go(v){
+  currentView=v;
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  window.scrollTo(0,0);
+  saveUI();
+  renderView(v);
+}
+function saveUI(){ try{ lsSet('quest21_ui', JSON.stringify({view:currentView, leadTeam, openChallenge})); }catch(e){} }
+function restoreUI(){
+  try{
+    const s=JSON.parse(lsGet('quest21_ui')||'{}');
+    if(s.leadTeam && ME && ME.isLead) leadTeam=s.leadTeam;
+    if(s.openChallenge) openChallenge=s.openChallenge;
+    if(s.view && document.getElementById('view-'+s.view)) go(s.view);
+  }catch(e){}
+}
+function renderAll(){
+  if(SPECTATOR){ renderSpectator(); return; }
+  if(MYTEAM){ renderTeamApp(); return; }
+  if(!ME) return;
+  renderView(currentView);
+}
+function renderView(v){
+  if(v==='team') renderTeam();
+  else if(v==='board') renderBoard();
+  else if(v==='stats') renderStats();
+  else if(v==='rules') renderRules();
+  else if(v==='setup') renderSetup();
+}
+
+/* =====================================================================
+   TEAM VIEW
+   ===================================================================== */
+let openChallenge = null;
+let leadTeam = null;   // which team the Lead is currently editing (null = All Teams list)
+function teamsIManage(){ return ME.isLead ? TEAM_IDS.slice() : [ME.team]; }
+
+function renderTeam(){
+  if(!ME) return;
+  const el=document.getElementById('view-team');
+  const baseMap=baseByRank();
+  if(ME.isLead && !leadTeam){
+    // lead: pick which team to edit
+    let html=`<h2 class="view-title display">All Teams</h2><div class="view-sub">Tap a team to log its scores</div>`;
+    TEAM_IDS.forEach(t=>{
+      const tm=CONFIG.teams[t]; const bd=teamBreakdown(t,baseMap); const total=teamTotal(t,baseMap);
+      html+=`<button class="lb-row open" style="width:100%;text-align:left" onclick="leadEdit('${t}')">
+        <div class="lb-main">
+          <div class="lb-badge" style="background:${tm.color}">${t}</div>
+          <div class="lb-info"><div class="nm">${esc(tm.name)}</div><div class="prog">${esc(tm.taskmaster||'')} · ${bd.done}/7 checkpoints</div></div>
+          <div class="lb-total">${total}</div>
+        </div></button>`;
+    });
+    el.innerHTML=html;
+    return;
+  }
+  if(ME.isLead && leadTeam){
+    el.innerHTML = `<button class="reset-ch" style="margin-bottom:12px;font-family:'Nunito'" onclick="leadBack()">← All teams</button>` + teamPanel(leadTeam, baseMap);
+    bindTeamPanel(leadTeam);
+    return;
+  }
+  el.innerHTML = teamPanel(ME.team, baseMap);
+  bindTeamPanel(ME.team);
+}
+function leadEdit(t){ leadTeam=t; saveUI(); renderView('team'); window.scrollTo(0,0); }
+function leadBack(){ leadTeam=null; openChallenge=null; saveUI(); renderView('team'); window.scrollTo(0,0); }
+
+function teamPanel(t, baseMap){
+  const tm=CONFIG.teams[t];
+  const total=teamTotal(t,baseMap);
+  const ranks=rankTeams(baseMap);
+  const myRank=ranks.findIndex(r=>r.t===t)+1;
+  const bd=teamBreakdown(t,baseMap);
+  const medal = myRank===1?'🥇':myRank===2?'🥈':myRank===3?'🥉':'#'+myRank;
+
+  let dots='';
+  CHALLENGES.forEach((c,i)=>{
+    const cs=SCORES[t].ch[c.id];
+    const done=elapsedMs(cs)!=null;
+    const running=cs.start && !cs.end;
+    dots+=`<div class="cp-dot ${done?'done':running?'running':''}">${done?'✓':(i+1)}</div>`;
+  });
+
+  let roster = tm.roster && tm.roster.length
+    ? tm.roster.map(n=>`<span class="chip">${esc(n)}</span>`).join('')
+    : `<span class="chip empty">No members yet — add them in Setup</span>`;
+
+  let cards='';
+  CHALLENGES.forEach((c,i)=>{ cards+=challengeCard(t,c,i,baseMap); });
+
+  return `
+    <div class="team-hero puzzle" style="background:${tm.color}">
+      <svg class="wm" viewBox="0 0 100 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="30" cy="26" r="14.5" stroke="#ffffff" stroke-width="11"/><path d="M8 68H50V40Z" fill="#ffffff"/><path d="M60 68V22L90 2V68Z" fill="#ffffff"/></svg>
+      <div class="th-top">
+        <div><div class="th-label">${esc(tm.taskmaster||'Taskmaster')}</div><div class="th-name">${esc(tm.name)}</div></div>
+        <div class="th-score"><div class="num">${total}</div><div class="lbl">points</div></div>
+      </div>
+      <div class="th-rank">${medal} <span>Rank ${myRank} of 5 · ${bd.done}/7 done</span></div>
+      ${countdownHTML('countdown')}
+    </div>
+    <div class="roster">${roster}</div>
+    <div class="cp-track">${dots}</div>
+    <h3 class="display" style="font-size:20px;color:var(--green);margin:4px 0 10px">Checkpoints</h3>
+    ${cards}
+    ${bonusPanel(t)}
+    <button class="brag-btn" onclick="showBrag('${t}')">🔥 View ${esc(tm.name)}'s brag card</button>
+    <div class="card" style="border-color:#f3d3d1;background:#fffafa">
+      <h3 style="color:var(--coral-dark)">Reset team</h3>
+      <div class="card-sub">Clears every time &amp; point for ${esc(tm.name)} — needs confirmation</div>
+      <button class="danger-btn" style="margin-top:2px" onclick="resetTeam('${t}')">Reset ${esc(tm.name)}'s scores</button>
+    </div>
+    <div class="footer-note">Taskmaster: ${esc(ME.name)} · ${LIVE?'Live sync on':'Local mode'}</div>
+  `;
+}
+
+function challengeCard(t,c,i,baseMap){
+  const cs=SCORES[t].ch[c.id];
+  const finished=elapsedMs(cs)!=null;
+  const running=cs.start && !cs.end;
+  const score = finished ? challengeScore(c,cs,baseMap[t][c.id]||0) : null;
+  const em=elapsedMin(cs);
+  const over=isOver(c,cs);
+  const open = openChallenge===c.id;
+
+  let timeBadge='';
+  if(finished){ timeBadge=`<span class="time-badge ${over?'over':''}">${fmtDur(elapsedMs(cs))}${over?' · over':''}</span>`; }
+  else if(running){
+    const left=(c.limit*60000)-(Date.now()-cs.start);
+    timeBadge=`<span class="time-badge ${left<0?'over':(left<120000?'warn':'')}">${left<0?'over time':(left<120000?'under 2 min left':'running…')}</span>`;
+  }
+  else { timeBadge=`<span class="time-badge" style="background:#eef1ee;color:#8a938c">limit ${c.limit}m</span>`; }
+
+  return `
+  <div class="ch-card perf ${open?'open':''}" id="card-${t}-${c.id}">
+    <button class="ch-head" onclick="toggleCard('${c.id}')">
+      <div class="ch-num ${finished?'done':''}">${finished?'✓':(i+1)}</div>
+      <div class="ch-meta"><div class="nm">${c.name}</div><div class="lo">${esc(c.loc)}</div>${timeBadge}</div>
+      <div class="ch-right">
+        <div class="pts ${score===null?'zero':''}">${score===null?'–':score}</div>
+        <div class="caret">▾</div>
+      </div>
+    </button>
+    <div class="ch-body">
+      ${c.verify?`<div class="verify-note"><b>Check:</b> ${esc(c.verify)}</div>`:''}
+      ${timerBlock(t,c)}
+      ${scoringBlock(t,c,baseMap)}
+    </div>
+  </div>`;
+}
+
+function timerBlock(t,c){
+  const cs=SCORES[t].ch[c.id];
+  const running=cs.start && !cs.end;
+  const finished=cs.start && cs.end;
+  let clock='00:00', over=false;
+  if(finished){ clock=fmtDur(elapsedMs(cs)); over=isOver(c,cs); }
+  else if(running){ clock=fmtDur(Date.now()-cs.start); over=(Date.now()-cs.start)/60000>c.limit; }
+  const state = finished?'Completed':running?'In progress':'Not started';
+
+  let btns='';
+  if(!cs.start){ btns=`<button class="big-btn start" onclick="startCh('${t}','${c.id}')">▶ Start</button>`; }
+  else if(!cs.end){ btns=`<button class="big-btn stop" onclick="stopCh('${t}','${c.id}')">■ Stop</button>
+    <button class="big-btn ghost" onclick="toggleEdit('${t}','${c.id}')">Edit</button>`; }
+  else { btns=`<button class="big-btn ghost" style="flex:1" onclick="toggleEdit('${t}','${c.id}')">Edit times</button>`; }
+
+  return `
+  <div class="timer-wrap" id="timer-${t}-${c.id}" data-limit="${c.limit}">
+    <div class="timer-state">${state} · limit ${c.limit} min</div>
+    <div class="timer-clock ${over?'over':''}" id="clock-${t}-${c.id}">${clock}</div>
+    <div class="timer-times"><span>Start <b>${cs.start?fmtClock(cs.start):'—'}</b></span><span>End <b>${cs.end?fmtClock(cs.end):'—'}</b></span></div>
+    <div class="timer-btns">${btns}</div>
+    <div class="time-edit" id="edit-${t}-${c.id}">
+      <label>Start<input type="time" value="${cs.start?toTimeInput(cs.start):''}" onchange="editTime('${t}','${c.id}','start',this.value)"></label>
+      <label>End<input type="time" value="${cs.end?toTimeInput(cs.end):''}" onchange="editTime('${t}','${c.id}','end',this.value)"></label>
+    </div>
+  </div>`;
+}
+
+function scoringBlock(t,c,baseMap){
+  const cs=SCORES[t].ch[c.id];
+  const P=CONFIG.points;
+  const base=baseMap[t][c.id];
+  const finished=elapsedMs(cs)!=null;
+  let rows='';
+
+  // base (rank) — read only
+  rows+=`<div class="score-row"><div><div class="sr-label">Finish points</div><div class="sr-hint">${finished?'Auto by speed rank':'Awarded when you Stop'}</div></div>
+    <div class="pts" style="font-family:'Anton';font-size:20px;color:${finished?'var(--green)':'#c9cfca'}">${finished?'+'+(base||0):'–'}</div></div>`;
+
+  // challenge-specific bonus
+  if(c.bonus){
+    if(c.bonus.type==='toggle'){
+      const on=cs.bonusOn;
+      const v=P[c.bonus.ptsKey]||0;
+      rows+=`<div class="score-row"><div><div class="sr-label">${c.bonus.label}</div><div class="sr-hint">${c.bonus.danger?'−':'+'}${v} pts</div></div>
+        <div class="toggle ${c.bonus.danger?'danger':''} ${on?'on':''}" onclick="toggleBonus('${t}','${c.id}')" role="switch" aria-checked="${on}" tabindex="0"></div></div>`;
+    } else if(c.bonus.type==='count'){
+      const val=cs.bonus||0;
+      rows+=`<div class="score-row"><div><div class="sr-label">${c.bonus.label}</div><div class="sr-hint">+${P[c.bonus.perKey]} pt each = +${val*(P[c.bonus.perKey]||0)}</div></div>
+        <div class="stepper"><button onclick="stepBonus('${t}','${c.id}',-1)">−</button><span class="val">${val}</span><button onclick="stepBonus('${t}','${c.id}',1)">+</button></div></div>`;
+    }
+  }
+
+  // hints
+  rows+=`<div class="score-row"><div><div class="sr-label">Hints used</div><div class="sr-hint">−${P.hint} pts each</div></div>
+    <div class="stepper"><button onclick="stepHint('${t}','${c.id}',-1)">−</button><span class="val">${cs.hints||0}</span><button onclick="stepHint('${t}','${c.id}',1)">+</button></div></div>`;
+
+  // time-over toggle (auto)
+  if(isOver(c,cs)){
+    rows+=`<div class="score-row"><div><div class="sr-label">Over time limit</div><div class="sr-hint">${cs.timeOverOff?'Penalty waived':'−'+P.timeOver+' pts'}</div></div>
+      <div class="toggle danger ${cs.timeOverOff?'':'on'}" onclick="toggleOver('${t}','${c.id}')" role="switch" tabindex="0"></div></div>`;
+  }
+
+  // manual adjust
+  rows+=`<div class="score-row" style="flex-direction:column;align-items:stretch;gap:10px">
+    <div class="sr-label">Manual adjustment <span class="sr-hint" style="display:inline">(e.g. half-points, judge call · tap −/+ or type)</span></div>
+    <div class="type-stepper">
+      <button onclick="stepExtra('${t}','${c.id}',-1)" aria-label="minus one">−</button>
+      <input type="number" inputmode="numeric" pattern="-?[0-9]*" class="ts-input" value="${cs.extra||0}" onchange="setExtra('${t}','${c.id}',this.value)" aria-label="adjustment points">
+      <button onclick="stepExtra('${t}','${c.id}',1)" aria-label="plus one">+</button>
+    </div>
+    <input type="text" class="reason-input" placeholder="reason (optional)" value="${esc(cs.extraNote||'')}" onchange="setExtraNote('${t}','${c.id}',this.value)"></div>`;
+
+  const sub = finished ? challengeScore(c,cs,base) : (challengeScore(c,cs,0));
+  rows+=`<div class="sub-total"><div class="lbl">Checkpoint total</div><div class="num">${finished?sub:'pending'}</div></div>`;
+  rows+=`<button class="reset-ch" onclick="resetCh('${t}','${c.id}')">Reset this checkpoint</button>`;
+  return rows;
+}
+
+function bonusPanel(t){
+  const b=SCORES[t].bonus||{sub:{},ccVideos:0,modPoints:0,unlocked:{}};
+  const P=CONFIG.points;
+  const lockTag=(key)=> bonusUnlocked(t,key)
+    ? '<span class="unlock-tag on">🔓 unlocked</span>'
+    : '<span class="unlock-tag">🔒 not yet</span>';
+  let subRows='';
+  SUBS.forEach(s=>{
+    if(s.count){
+      const v=b.sub?.[s.key]||0;
+      subRows+=`<div class="score-row"><div><div class="sr-label">${s.label}</div><div class="sr-hint">${s.hint} ${lockTag(s.key)}</div></div>
+        <div class="stepper"><button onclick="stepSub('${t}','${s.key}',-1)">−</button><span class="val">${v}</span><button onclick="stepSub('${t}','${s.key}',1)">+</button></div></div>`;
+    } else if(s.selfie){
+      const on=!!b.sub?.[s.key]; const sel=!!b.sub?.[s.key+'_selfie'];
+      subRows+=`<div class="score-row"><div><div class="sr-label">${s.label}</div><div class="sr-hint">${s.hint}${on&&sel?' → ×2 on':''} ${lockTag(s.key)}</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${on?`<button class="reset-ch" style="width:auto;margin:0;padding:6px 10px;${sel?'background:var(--mint-bright);color:#fff;border-color:var(--mint-bright)':''}" onclick="toggleSelfie('${t}','${s.key}')">selfie</button>`:''}
+          <div class="toggle ${on?'on':''}" onclick="toggleSub('${t}','${s.key}')" role="switch" tabindex="0"></div>
+        </div></div>`;
+    } else {
+      const on=!!b.sub?.[s.key];
+      subRows+=`<div class="score-row"><div><div class="sr-label">${s.label}</div><div class="sr-hint">${s.hint} ${lockTag(s.key)}</div></div>
+        <div class="toggle ${on?'on':''}" onclick="toggleSub('${t}','${s.key}')" role="switch" tabindex="0"></div></div>`;
+    }
+  });
+
+  return `
+  <div class="card" style="margin-top:18px">
+    <h3>Bonus Sub-Challenges</h3>
+    <div class="card-sub">Team-only mini tasks · 1 point each</div>
+    ${subRows}
+    <div class="score-row"><div><div class="sr-label">Core-committee videos</div><div class="sr-hint">+${P.ccPerMember} pt each · 7 members ${lockTag('cc')}</div></div>
+      <div class="stepper"><button onclick="stepCC('${t}',-1)">−</button><span class="val">${b.ccVideos||0}</span><button onclick="stepCC('${t}',1)">+</button></div></div>
+    <div class="score-row"><div><div class="sr-label">Moderator bonus games</div><div class="sr-hint">Printed-card games · 1–5 pts</div></div>
+      <div class="type-stepper" style="max-width:160px;flex:0 0 auto">
+        <button onclick="stepMod('${t}',-1)" aria-label="minus one">−</button>
+        <input type="number" inputmode="numeric" class="ts-input" value="${b.modPoints||0}" onchange="setMod('${t}',this.value)" aria-label="mod points">
+        <button onclick="stepMod('${t}',1)" aria-label="plus one">+</button>
+      </div></div>
+    <div class="sub-total"><div class="lbl">Bonus total</div><div class="num">${teamBonusScore(t)}</div></div>
+    <button class="reset-ch" onclick="resetUnlocks('${t}')">Reset bonus riddle unlocks (${TEAM_BONUS_LIST.filter(x=>bonusUnlocked(t,x.key)).length}/${TEAM_BONUS_LIST.length} open)</button>
+  </div>`;
+}
+
+/* ---------- team-view bindings & actions ---------- */
+function bindTeamPanel(t){ startTick(); }
+function toggleCard(id){ openChallenge = (openChallenge===id?null:id); saveUI(); renderView('team'); }
+
+function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+function anyTimerRunning(){
+  return TEAM_IDS.some(t=>CHALLENGES.some(c=>{ const cs=SCORES[t]&&SCORES[t].ch[c.id]; return cs&&cs.start&&!cs.end; }));
+}
+async function refreshWakeLock(){
+  try{
+    if(!('wakeLock' in navigator)) return;
+    if(anyTimerRunning() && !wakeLock){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', ()=>{ wakeLock=null; });
+    } else if(!anyTimerRunning() && wakeLock){
+      await wakeLock.release(); wakeLock=null;
+    }
+  }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refreshWakeLock(); });
+
+let _undo=null, _undoT=null;
+function offerUndo(label, snapshot, path){
+  _undo={snapshot, path};
+  const el=document.getElementById('undoBar');
+  document.getElementById('undoText').textContent=label;
+  el.classList.add('show');
+  clearTimeout(_undoT);
+  _undoT=setTimeout(()=>{ el.classList.remove('show'); _undo=null; }, 6000);
+}
+function doUndo(){
+  if(!_undo) return;
+  const {snapshot, path}=_undo;
+  SCORES[path.t].ch[path.cid]=JSON.parse(snapshot);
+  _undo=null;
+  document.getElementById('undoBar').classList.remove('show');
+  clearTimeout(_undoT);
+  buzz(15);
+  commit();
+  toast('Undone');
+}
+function startCh(t,cid){
+  const before=JSON.stringify(SCORES[t].ch[cid]);
+  SCORES[t].ch[cid].start=Date.now(); SCORES[t].ch[cid].end=null;
+  buzz(20); commit(); refreshWakeLock();
+  offerUndo('Timer started', before, {t,cid});
+  toast('Timer started ⏱');
+}
+function stopCh(t,cid){
+  const before=JSON.stringify(SCORES[t].ch[cid]);
+  const cs=SCORES[t].ch[cid]; cs.end=Date.now();
+  buzz([25,60,25]); commit(); refreshWakeLock(); stampDot(t,cid);
+  offerUndo('Checkpoint stamped', before, {t,cid});
+  toast('Checkpoint stamped ✓');
+}
+function toggleEdit(t,cid){ const e=document.getElementById(`edit-${t}-${cid}`); if(e) e.classList.toggle('show'); }
+function editTime(t,cid,which,val){
+  if(!val){ SCORES[t].ch[cid][which]=null; commit(); return; }
+  const [h,m]=val.split(':').map(Number);
+  const d=new Date(); d.setHours(h,m,0,0);
+  SCORES[t].ch[cid][which]=d.getTime();
+  commit();
+}
+function toggleBonus(t,cid){ const cs=SCORES[t].ch[cid]; cs.bonusOn=!cs.bonusOn; commit(); }
+function stepBonus(t,cid,d){ const cs=SCORES[t].ch[cid]; const c=CHALLENGES.find(x=>x.id===cid); cs.bonus=clampN((cs.bonus||0)+d,0,c.bonus.max||99); commit(); }
+function stepHint(t,cid,d){ const cs=SCORES[t].ch[cid]; cs.hints=clampN((cs.hints||0)+d,0,20); commit(); }
+function toggleOver(t,cid){ const cs=SCORES[t].ch[cid]; cs.timeOverOff=!cs.timeOverOff; commit(); }
+function setExtra(t,cid,v){ SCORES[t].ch[cid].extra=Math.round(Number(v)||0); commit(); }
+function stepExtra(t,cid,d){ const cs=SCORES[t].ch[cid]; cs.extra=Math.round((cs.extra||0)+d); commit(); }
+function setExtraNote(t,cid,v){ SCORES[t].ch[cid].extraNote=v; commit(true); }
+function resetCh(t,cid){
+  const c=CHALLENGES.find(x=>x.id===cid);
+  openConfirm('Reset this checkpoint?',
+    'Clears the start/end times and all points for '+(c?c.name:'this checkpoint')+' — '+CONFIG.teams[t].name+'. It cannot be undone.',
+    'Reset checkpoint',
+    ()=>{ const bt=blankTeamScore(); SCORES[t].ch[cid]=bt.ch[cid]; buzz(20); commit(); refreshWakeLock(); toast('Checkpoint reset'); });
+}
+function toggleSub(t,key){ const b=SCORES[t].bonus; b.sub=b.sub||{}; b.sub[key]=!b.sub[key]; commit(); }
+function toggleSelfie(t,key){ const b=SCORES[t].bonus; b.sub[key+'_selfie']=!b.sub[key+'_selfie']; commit(); }
+function stepSub(t,key,d){ const b=SCORES[t].bonus; b.sub=b.sub||{}; b.sub[key]=clampN((b.sub[key]||0)+d,0,30); commit(); }
+function stepCC(t,d){ const b=SCORES[t].bonus; b.ccVideos=clampN((b.ccVideos||0)+d,0,7); commit(); }
+function setMod(t,v){ SCORES[t].bonus.modPoints=Math.max(0,Math.round(Number(v)||0)); commit(); }
+function stepMod(t,d){ const b=SCORES[t].bonus; b.modPoints=Math.max(0,Math.round((b.modPoints||0)+d)); commit(); }
+function resetUnlocks(t){
+  openConfirm('Re-lock the bonus riddles?',
+    'All bonus riddles go back to locked for '+CONFIG.teams[t].name+'. Points already awarded are kept.',
+    'Re-lock them',
+    ()=>{ SCORES[t].bonus.unlocked={}; buzz(20); commit(); toast('Bonus riddles re-locked'); });
+}
+function resetTeam(t){
+  const tm=CONFIG.teams[t];
+  openConfirm('Reset '+tm.name+'?',
+    'This clears every checkpoint time, bonus and point for '+tm.name+'. It cannot be undone.',
+    'Reset team',
+    ()=>{ SCORES[t]=blankTeamScore(); pushScores(); toast(tm.name+' reset'); renderView('team'); });
+}
+
+function commit(silent){
+  pushScores();
+  if(silent) return;
+  if(MYTEAM){ renderTeamApp(); return; }
+  if(ME) renderView('team');
+}
+function stampDot(t,cid){
+  // re-render then animate the newly completed dot
+  renderView('team');
+  requestAnimationFrame(()=>{
+    const dots=document.querySelectorAll('#view-team .cp-dot.done');
+    const idx=CHALLENGES.findIndex(c=>c.id===cid);
+    if(dots[Math.min(idx,dots.length-1)]) dots[Math.min(idx,dots.length-1)].classList.add('just-stamped');
+  });
+}
+
+/* live ticking timers */
+function startTick(){
+  if(tickTimer) return;
+  tickTimer=setInterval(()=>{
+    document.querySelectorAll('.timer-clock').forEach(el=>{
+      const id=el.id.replace('clock-',''); const [t,cid]=id.split('-');
+      const cs=SCORES[t]?.ch?.[cid]; if(cs&&cs.start&&!cs.end){
+        const ms=Date.now()-cs.start; el.textContent=fmtDur(ms);
+        const lim=Number(el.closest('.timer-wrap').dataset.limit)||99;
+        el.classList.toggle('over', ms/60000>lim);
+      }
+    });
+    tickCountdown();
+  },1000);
+}
+function tickCountdown(){
+  // elapsed on the team's current challenge (counts up)
+  const el=document.getElementById('chElapsed');
+  if(el && el.dataset.start){ el.textContent=fmtDur(Date.now()-Number(el.dataset.start)); }
+  // per-challenge countdown on the team clue page
+  const ch=document.getElementById('chLeft');
+  if(ch){
+    const st=Number(ch.dataset.start), lim=Number(ch.dataset.limit);
+    if(st){
+      const left=(lim*60000)-(Date.now()-st);
+      ch.textContent=fmtCountdown(left);
+      const box=ch.closest('.ct-box');
+      if(box){ box.classList.remove('warn','over'); if(left<0) box.classList.add('over'); else if(left<120000) box.classList.add('warn'); }
+    }
+  }
+  const num=document.getElementById('cdNum'); if(!num) return;
+  const ms=questRemainingMs(); if(ms==null) return;
+  num.textContent=fmtCountdown(ms);
+  const box=document.getElementById('cdBox') || num.closest('.ct-box');
+  if(box){ box.classList.remove('warn','over'); const c=countdownClass(ms); if(c) box.classList.add(c); }
+}
+// keep the countdown alive on the spectator screen too
+setInterval(tickCountdown, 1000);
+
+/* =====================================================================
+   LEADERBOARD
+   ===================================================================== */
+function rankTeams(baseMap){
+  return TEAM_IDS.map(t=>({t, total:teamTotal(t,baseMap)}))
+    .sort((a,b)=> b.total-a.total || a.t.localeCompare(b.t));
+}
+let openLbTeam=null;
+function boardHTML(opts){
+  opts=opts||{};
+  const baseMap=baseByRank();
+  const ranked=rankTeams(baseMap);
+  const top3=ranked.slice(0,3);
+  const order=[top3[1],top3[0],top3[2]]; // 2nd,1st,3rd for podium
+  const medals=['🥈','🥇','🥉']; const cls=['p2','p1','p3'];
+
+  let podium='';
+  order.forEach((r,i)=>{
+    if(!r) return;
+    const tm=CONFIG.teams[r.t];
+    podium+=`<div class="pod ${cls[i]}"><div class="medal">${medals[i]}</div>
+      <div class="pod-name">${esc(tm.name)}</div><div class="pod-score">${r.total} pts</div>
+      <div class="bar" style="background:${tm.color}">${r.t}</div></div>`;
+  });
+
+  let rows='';
+  ranked.forEach((r,i)=>{
+    const tm=CONFIG.teams[r.t];
+    const bd=teamBreakdown(r.t,baseMap);
+    const open=openLbTeam===r.t;
+    const clickHandler = opts.spectator ? `onclick="showBrag('${r.t}')"` : `onclick="toggleLb('${r.t}')"`;
+    let detail='';
+    bd.lines.forEach(l=>{
+      const neg=(l.val!=null&&l.val<0);
+      detail+=`<div class="lb-line ${neg?'neg':''} ${l.muted?'muted':''}"><span>${l.label}</span><span class="v">${l.val==null?'–':(l.val>0&&l.bonus?'+':'')+l.val}</span></div>`;
+    });
+    rows+=`<div class="lb-row ${open?'open':''}">
+      <button class="lb-main" ${clickHandler}>
+        <div class="lb-rank ${i<3?'top':''}">${i+1}</div>
+        <div class="lb-badge" style="background:${tm.color}">${r.t}</div>
+        <div class="lb-info"><div class="nm">${esc(tm.name)}</div><div class="prog">${esc(tm.taskmaster||'')} · ${bd.done}/7 checkpoints</div></div>
+        <div class="lb-total">${r.total}</div>
+      </button>
+      ${opts.spectator ? '' : `<div class="lb-detail">${detail}</div>`}
+    </div>`;
+  });
+  const hint = opts.spectator ? `<div class="view-sub" style="text-align:center;margin-bottom:10px">Tap your team for a brag card 🔥</div>` : '';
+  return `<div class="podium">${podium}</div>${hint}${rows}`;
+}
+function renderBoard(){
+  document.getElementById('view-board').innerHTML=`
+    <h2 class="view-title display">Leaderboard</h2>
+    <div class="view-sub">Live standings · updates as times come in</div>
+    ${boardHTML()}
+    <div class="footer-note">${LIVE?'● Live — every taskmaster sees this instantly':'● Local mode — connect Firebase to sync all phones'}</div>`;
+}
+function toggleLb(t){ openLbTeam=(openLbTeam===t?null:t); renderBoard(); }
+
+/* =====================================================================
+   STATS  (round-wise + fun superlatives, mix of hype & jabs)
+   ===================================================================== */
+function allElapsed(){
+  const list=[];
+  TEAM_IDS.forEach(t=>CHALLENGES.forEach(c=>{ const ms=elapsedMs(SCORES[t].ch[c.id]); if(ms!=null) list.push({t, c, ms}); }));
+  return list;
+}
+function computeStats(){
+  const baseMap=baseByRank();
+  const el=allElapsed();
+  const s={ any: el.length>0 };
+  // fastest / slowest single round
+  if(el.length){
+    const fast=el.reduce((a,b)=>b.ms<a.ms?b:a);
+    const slow=el.reduce((a,b)=>b.ms>a.ms?b:a);
+    s.fastest={team:fast.t, ch:fast.c.name, chIdx:CHALLENGES.indexOf(fast.c), ms:fast.ms};
+    s.slowest={team:slow.t, ch:slow.c.name, chIdx:CHALLENGES.indexOf(slow.c), ms:slow.ms};
+  }
+  // per-team aggregates
+  const agg={};
+  TEAM_IDS.forEach(t=>{
+    let hints=0, done=0, totalMs=0, bonusPts=0, subCount=0, beatMod=false;
+    CHALLENGES.forEach(c=>{ const cs=SCORES[t].ch[c.id]; hints+=cs.hints||0; const ms=elapsedMs(cs); if(ms!=null){done++; totalMs+=ms;} bonusPts+=challengeBonus(c,cs); });
+    const b=SCORES[t].bonus||{sub:{}};
+    SUBS.forEach(su=>{ const r=b.sub?.[su.key]; if(su.count) subCount+=(r||0); else if(r) subCount++; });
+    if(SCORES[t].ch['c5'].bonusOn) beatMod=true;
+    agg[t]={ hints, done, totalMs, bonusPts, subCount, beatMod,
+      sarSaved:SCORES[t].ch['c3'].bonus||0, items21:SCORES[t].ch['c6'].bonus||0,
+      cc:(b.ccVideos||0), total:teamTotal(t,baseMap) };
+  });
+  s.agg=agg;
+  s.mostHints = pickMax(agg,'hints');
+  s.bargain   = pickMax(agg,'sarSaved');
+  s.eagle     = pickMax(agg,'items21');
+  s.committee = pickMax(agg,'cc');
+  s.overachiever = pickMax(agg,'subCount');
+  s.modSlayers = TEAM_IDS.filter(t=>agg[t].beatMod);
+  // speed king: most checkpoints done, tiebreak fastest total time
+  let speed=null;
+  TEAM_IDS.forEach(t=>{ const a=agg[t]; if(a.done===0) return;
+    if(!speed || a.done>agg[speed].done || (a.done===agg[speed].done && a.totalMs<agg[speed].totalMs)) speed=t; });
+  s.speed=speed;
+  // zero-hint heroes (only those who've started)
+  s.noHints = TEAM_IDS.filter(t=>agg[t].done>0 && agg[t].hints===0);
+  s.leader = rankTeams(baseMap)[0];
+  return s;
+}
+function pickMax(agg,key){ let best=null,bv=0; TEAM_IDS.forEach(t=>{ const v=agg[t][key]||0; if(v>bv){bv=v;best=t;} }); return best?{team:best,val:bv}:null; }
+
+function statCard(emoji,label,teamId,detail,extraClass){
+  if(!teamId){ return `<div class="stat-card empty-stat ${extraClass||''}"><div class="sc-emoji">${emoji}</div><div class="sc-label">${label}</div><div class="sc-team">—</div><div class="sc-detail" style="color:#c9cfca">not yet</div></div>`; }
+  const tm=CONFIG.teams[teamId];
+  return `<div class="stat-card ${extraClass||''}"><div class="sc-emoji">${emoji}</div><div class="sc-label">${label}</div>
+    <div class="sc-team" style="color:${tm.color}">${esc(tm.name)}</div><div class="sc-detail">${detail||''}</div></div>`;
+}
+function statsHTML(hideNames, publicSafe){
+  const s=computeStats();
+  // on the public team link we mask riddle answers: "Showroom" -> "Challenge 1"
+  const cname=(idx)=> hideNames ? ('Challenge '+(idx+1)) : (CHALLENGES[idx]?CHALLENGES[idx].name:('Challenge '+(idx+1)));
+  if(!s.any){
+    return `<div class="stat-hero"><div class="sh-emoji">🏁</div><div class="sh-title">Stats warming up</div><div class="sh-sub">Facts appear as teams finish rounds</div></div>
+      <div class="empty">No rounds completed yet — check back once the race is underway. 👀</div>`;
+  }
+  const leadTm=CONFIG.teams[s.leader.t];
+  let cards='';
+  cards+=statCard('🏆','Currently leading', s.leader.t, s.leader.total+' pts');
+  cards+=statCard('⚡','Speed demons', s.speed, s.speed?(s.agg[s.speed].done+'/7 · '+fmtDur(s.agg[s.speed].totalMs)+' total'):'');
+  cards+=statCard('🏁','Fastest round', s.fastest?s.fastest.team:null, s.fastest?(cname(s.fastest.chIdx)+' · '+fmtDur(s.fastest.ms)):'');
+  cards+=statCard('🐢','Scenic route (slowest)', s.slowest?s.slowest.team:null, s.slowest?(cname(s.slowest.chIdx)+' · '+fmtDur(s.slowest.ms)):'', 'jab-card');
+  cards+=statCard('🙋','Phone-a-friend', s.mostHints?s.mostHints.team:null, s.mostHints?(s.mostHints.val+' hint'+(s.mostHints.val>1?'s':'')+' 😅'):'');
+  // labels stay vague; the revealing detail is taskmaster-only
+  cards+=statCard('💎','Resourceful', s.bargain?s.bargain.team:null, s.bargain?(publicSafe?'top score':(s.bargain.val+' SAR saved')):'');
+  cards+=statCard('👁️','Eyes everywhere', s.eagle?s.eagle.team:null, s.eagle?(publicSafe?'top score':(s.eagle.val+' items')):'');
+  cards+=statCard('🤝','People person', s.committee?s.committee.team:null, s.committee?(publicSafe?'top score':(s.committee.val+'/7 videos')):'');
+
+  // round-by-round
+  let rounds='';
+  CHALLENGES.forEach((c,i)=>{
+    const finished=TEAM_IDS.map(t=>({t, ms:elapsedMs(SCORES[t].ch[c.id])})).filter(x=>x.ms!=null).sort((a,b)=>a.ms-b.ms);
+    const medals=['🥇','🥈','🥉'];
+    let rrows = finished.length
+      ? finished.map((f,idx)=>`<div class="round-row"><span class="rmedal">${medals[idx]||''}</span><span class="rteam" style="color:${CONFIG.teams[f.t].color}">${esc(CONFIG.teams[f.t].name)}</span><span class="rtime">${fmtDur(f.ms)}</span></div>`).join('')
+      : `<div class="round-row none">no team has finished this yet</div>`;
+    rounds+=`<div class="round-block"><div class="round-head"><div class="rn">${i+1}</div><div class="rt">${cname(i)}</div></div>${rrows}</div>`;
+  });
+
+  const modBrag = s.modSlayers.length ? `<div class="badge-wrap" style="margin-top:10px">${s.modSlayers.map(t=>`<span class="badge hype">⚔️ ${esc(CONFIG.teams[t].name)} · Undefeated</span>`).join('')}</div>` : '';
+  const brainBrag = s.noHints.length ? `<div class="badge-wrap" style="margin-top:6px">${s.noHints.map(t=>`<span class="badge hype">🧠 ${esc(CONFIG.teams[t].name)} · Solo Brain</span>`).join('')}</div>` : '';
+
+  return `
+    <div class="stat-hero puzzle"><div class="sh-emoji">🔥</div><div class="sh-title" style="color:${leadTm.color}">${esc(leadTm.name)} out front</div><div class="sh-sub">Bragging rights · live</div></div>
+    <div class="stat-grid">${cards}</div>
+    ${modBrag}${brainBrag}
+    <h3 class="display" style="font-size:20px;color:var(--green);margin:18px 0 10px">Round by round</h3>
+    ${rounds}`;
+}
+function badgeLegendHTML(){
+  const rows=[
+    ['🏆 Frontrunner','Leading on total points'],
+    ['⚡ Speed Demon','Most checkpoints done, fastest overall time'],
+    ['🏁 Record Setter','Fastest single round of the day'],
+    ['💎 Resourceful','Saved the most of the Daiso budget'],
+    ['👁️ Eyes Everywhere','Found the most SAR 21 items'],
+    ['🤝 People Person','Collected the most committee videos'],
+    ['⚔️ Undefeated','Beat a moderator at the arcade'],
+    ['🧠 Solo Brain','Finished rounds without asking for a hint'],
+    ['🙋 Phone-a-Friend','Used the most hints'],
+    ['🐢 Scenic Route','Slowest single round of the day']
+  ];
+  return `<div class="card" style="margin-top:16px">
+    <h3>What the badges mean</h3>
+    <div class="card-sub">Taskmasters only — the names stay vague so teams can't reverse-engineer a challenge</div>
+    ${rows.map(r=>`<div class="score-row"><div class="sr-label">${r[0]}</div><div class="sr-hint" style="text-align:right;max-width:58%">${r[1]}</div></div>`).join('')}
+  </div>`;
+}
+function renderStats(){
+  document.getElementById('view-stats').innerHTML=`
+    <h2 class="view-title display">Stats</h2>
+    <div class="view-sub">Fun facts & bragging rights</div>
+    ${statsHTML(false,false)}
+    ${badgeLegendHTML()}
+    <div class="footer-note">Tap the Board to see full standings</div>`;
+}
+
+/* =====================================================================
+   BRAG CARD
+   ===================================================================== */
+function teamBadges(t,s){
+  // Badge names are deliberately vague — they describe a quality, never the task.
+  // Taskmasters know what each one means (legend on the Stats page).
+  const b=[];
+  if(s.leader && s.leader.t===t) b.push({c:'hype',x:'🏆 Frontrunner'});
+  if(s.speed===t) b.push({c:'hype',x:'⚡ Speed Demon'});
+  if(s.fastest && s.fastest.team===t) b.push({c:'hype',x:'🏁 Record Setter'});
+  if(s.bargain && s.bargain.team===t) b.push({c:'hype',x:'💎 Resourceful'});
+  if(s.eagle && s.eagle.team===t) b.push({c:'hype',x:'👁️ Eyes Everywhere'});
+  if(s.committee && s.committee.team===t) b.push({c:'hype',x:'🤝 People Person'});
+  if(s.noHints.includes(t)) b.push({c:'hype',x:'🧠 Solo Brain'});
+  if(s.modSlayers.includes(t)) b.push({c:'hype',x:'⚔️ Undefeated'});
+  if(s.mostHints && s.mostHints.team===t) b.push({c:'jab',x:'🙋 Phone-a-Friend'});
+  if(s.slowest && s.slowest.team===t) b.push({c:'jab',x:'🐢 Scenic Route'});
+  return b;
+}
+function bragCardHTML(t){
+  const s=computeStats();
+  const baseMap=baseByRank();
+  const ranked=rankTeams(baseMap);
+  const rank=ranked.findIndex(r=>r.t===t)+1;
+  const tm=CONFIG.teams[t]; const a=s.agg?s.agg[t]:null;
+  const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank;
+  const badges=s.any?teamBadges(t,s):[];   // badge names are spoiler-free, so everyone sees them all
+  const badgeHTML = badges.length ? `<div class="badge-wrap" style="justify-content:center">${badges.map(x=>`<span class="badge ${x.c}">${x.x}</span>`).join('')}</div>` : `<div class="brag-foot">Badges unlock as you play 🔓</div>`;
+  return `
+    <div class="brag-card">
+      <div class="brag-top puzzle" style="background:${tm.color}">
+        <div class="bt-quest">The 21° Quest · Jeddah Park</div>
+        <div class="bt-name">${esc(tm.name)}</div>
+        <div class="bt-rank">${medal} Rank ${rank} of 5</div>
+      </div>
+      <div class="brag-body">
+        <div class="brag-score"><div class="bs-num">${a?a.total:0}</div><div class="bs-lbl">total points</div></div>
+        <div class="brag-stats">
+          <div class="brag-stat"><div class="n">${a?a.done:0}/7</div><div class="l">checkpoints</div></div>
+          <div class="brag-stat"><div class="n">${a?fmtDur(a.totalMs):'0:00'}</div><div class="l">time on course</div></div>
+          <div class="brag-stat"><div class="n">${a?a.subCount:0}</div><div class="l">bonus tasks</div></div>
+          <div class="brag-stat"><div class="n">${a?a.hints:0}</div><div class="l">hints used</div></div>
+        </div>
+        ${badgeHTML}
+        <div class="brag-foot" style="margin-top:12px">#The21Quest 🧭</div>
+      </div>
+    </div>`;
+}
+function showBrag(t){
+  document.getElementById('bragCardWrap').innerHTML =
+    bragCardHTML(t) + `<div class="brag-tip">📸 Screenshot this and drop it in the group chat</div>`;
+  document.getElementById('bragBack').classList.add('show');
+}
+function closeBrag(){ document.getElementById('bragBack').classList.remove('show'); }
+
+/* =====================================================================
+   SPECTATOR MODE  (team link:  …/?tv )
+   ===================================================================== */
+let specTab='board';
+let _lastSync=Date.now();
+function renderSpectator(){
+  const ended=!!CONFIG.questEnded;
+  const statsBtn=document.getElementById('spTabStats');
+  statsBtn.style.display = ended ? '' : 'none';   // stats stay locked until the Lead ends the quest
+  if(!ended && specTab==='stats') specTab='board';
+  const liveTxt=document.getElementById('specLiveTxt'); if(liveTxt) liveTxt.textContent = ended ? 'Final results' : 'Live standings';
+  const cd=document.getElementById('specCd');
+  if(cd) cd.innerHTML = ended ? '' : countdownHTML('spec-countdown');
+  const c=document.getElementById('spec-content');
+  if(specTab==='board'){
+    c.innerHTML = boardHTML({spectator:true});
+  } else {
+    c.innerHTML = `<div class="stat-hero puzzle" style="margin-bottom:14px"><div class="sh-emoji">🏁</div><div class="sh-title">Quest complete!</div><div class="sh-sub">Final stats unlocked</div></div>` + statsHTML(false,false);
+  }
+  document.getElementById('spTabBoard').classList.toggle('on', specTab==='board');
+  statsBtn.classList.toggle('on', specTab==='stats');
+  if(ended) fireConfetti();
+}
+function specGo(tab){ if(tab==='stats' && !CONFIG.questEnded) return; specTab=tab; renderSpectator(); window.scrollTo(0,0); }
+
+
+/* =====================================================================
+   RULES
+   ===================================================================== */
+function renderRules(){
+  const el=document.getElementById('view-rules');
+  const rules=[
+    ['1','Report back together','Whole team, all times. Splitting up = half points.'],
+    ['2','One designated communicator','Only one member talks to the taskmaster.'],
+    ['3','Hints cost 5 points','Taskmaster can reach out free; the team asking costs points.'],
+    ['4','No following other teams','Don\'t shadow another team for an advantage.'],
+    ['5','Two-hour limit','Finish all challenges within the window. Over = −5 per checkpoint.'],
+    ['6','Respect shoppers & staff','No running wild around the mall.'],
+    ['★','Taskmasters have the final say','Your call on challenges is final.']
+  ];
+  let items=rules.map(r=>`<div class="rule-item"><div class="rule-ic">${r[0]}</div><div class="rule-tx">${r[1]}<small>${r[2]}</small></div></div>`).join('');
+  el.innerHTML=`
+    <h2 class="view-title display">Rules</h2>
+    <div class="view-sub">Your reminder for the day</div>
+    <div class="card">${items}</div>
+    <div class="reminder">Remember: <b>sometimes the clue is hiding in plain sight.</b></div>
+    <div class="card" style="margin-top:14px">
+      <h3>How scoring works</h3>
+      <div class="card-sub">Quick reference</div>
+      <div class="rule-tx" style="font-weight:700;font-size:13px;line-height:1.9">
+        · Fastest team on each checkpoint earns the most (50 / 40 / 30 / 20 / 10 by finish rank).<br>
+        · Bonuses add on top (proof, items, beating the mod, SAR saved…).<br>
+        · Hints −5 each · over the time limit −5 · use Manual adjustment for judge calls.<br>
+        · Bonus sub-challenges + committee videos + moderator games stack on the team total.
+      </div>
+    </div>
+    <div class="footer-note">The Quest begins now. Good luck 🍀</div>
+  `;
+}
+
+/* =====================================================================
+   SETUP
+   ===================================================================== */
+function renderSetup(){
+  const el=document.getElementById('view-setup');
+  const P=CONFIG.points;
+  if(!ME.isLead){
+    // team taskmasters can edit their own team + view; only lead edits everything.
+    const t=ME.team; const tm=CONFIG.teams[t];
+    el.innerHTML=`
+      <h2 class="view-title display">Setup</h2>
+      <div class="view-sub">Edit your team · ${LIVE?'saves live':'saved on this device'}</div>
+      ${teamSetupCard(t)}
+      ${teamLinkCardHTML()}
+      <div class="card"><h3>Point values</h3><div class="card-sub">Only the Lead can change scoring rules</div>
+        <div class="rule-tx" style="font-size:13px;color:var(--muted)">Ask your Lead taskmaster to adjust point values so everyone stays in sync.</div></div>
+      <div class="card"><h3>Switch view</h3><div class="card-sub">Jump to the team side (useful for testing)</div>
+        <button class="brag-btn" style="font-size:15px;padding:13px" onclick="backToLanding()">🧭 Back to start / Team view</button></div>
+      <div class="card"><h3>Security</h3><div class="card-sub">Lock this phone if you're handing it to someone</div>
+        <button class="danger-btn" onclick="lockApp()">🔒 Lock this phone</button></div>
+      <div class="footer-note">Signed in as ${esc(ME.name)}</div>`;
+    return;
+  }
+
+  let teamCards=TEAM_IDS.map(t=>teamSetupCard(t)).join('');
+  el.innerHTML=`
+    <h2 class="view-title display">Setup</h2>
+    <div class="view-sub">Lead controls · ${LIVE?'saves live to all phones':'saved on this device'}</div>
+
+    <div class="card">
+      <h3>Taskmasters & Teams</h3>
+      <div class="card-sub">Names shown on the login screen</div>
+      ${teamCards}
+      <div class="field"><label>Lead / roaming taskmaster (6th)</label>
+        <input type="text" value="${esc(CONFIG.lead||'')}" onchange="setLead(this.value)"></div>
+    </div>
+
+    <div class="card">
+      <h3>Point values</h3>
+      <div class="card-sub">Tune the scoring engine — everyone updates instantly</div>
+      <div class="pt-grid">
+        ${ptCell('Finish 1st','base0',P.base[0])}
+        ${ptCell('Finish 2nd','base1',P.base[1])}
+        ${ptCell('Finish 3rd','base2',P.base[2])}
+        ${ptCell('Finish 4th','base3',P.base[3])}
+        ${ptCell('Finish 5th','base4',P.base[4])}
+        ${ptCell('Hint (−)','hint',P.hint)}
+        ${ptCell('Over time (−)','timeOver',P.timeOver)}
+        ${ptCell('Showroom proof','proof',P.proof)}
+        ${ptCell('Odyssey no-team (−)','noFullTeam',P.noFullTeam)}
+        ${ptCell('Daiso per SAR','daisoPerSar',P.daisoPerSar)}
+        ${ptCell('Danube per cat.','danubePerCat',P.danubePerCat)}
+        ${ptCell('Arcade beat mod','arcadeWin',P.arcadeWin)}
+        ${ptCell('SAR 21 per item','sar21PerItem',P.sar21PerItem)}
+        ${ptCell('Per CC video','ccPerMember',P.ccPerMember)}
+      </div>
+    </div>
+
+    ${teamLinkCardHTML()}
+
+    <div class="card" style="border-color:${CONFIG.questEnded?'#bfe6cf':'var(--line)'};background:${CONFIG.questEnded?'#f2fbf6':'#fff'}">
+      <h3>Quest status</h3>
+      <div class="card-sub">Controls what the team link (?tv) shows</div>
+      <div class="score-row" style="border-bottom:none">
+        <div>
+          <div class="sr-label">${CONFIG.questEnded?'🏁 Quest finished':'🔴 Quest live'}</div>
+          <div class="sr-hint">${CONFIG.questEnded
+            ? 'Teams can now see full stats + real challenge names'
+            : 'Teams see the leaderboard only — stats & answers hidden'}</div>
+        </div>
+        <div class="toggle ${CONFIG.questEnded?'on':''}" onclick="toggleQuestEnded()" role="switch" aria-checked="${CONFIG.questEnded}" tabindex="0"></div>
+      </div>
+      <div class="sr-hint" style="margin-top:6px">Flip this at the finale for the big reveal 🎉</div>
+      <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px">
+        <div class="sr-label">${CONFIG.questStart?'⏱ Countdown running':'⏱ Quest not started'}</div>
+        <div class="sr-hint" style="margin-bottom:10px">${CONFIG.questStart
+          ? 'Started '+fmtClock(CONFIG.questStart)+' · '+(CONFIG.questMinutes||120)+' min window'
+          : 'One press releases all 5 teams — starts the countdown and Checkpoint 1 for everyone at once'}</div>
+        <button class="${CONFIG.questStart?'danger-btn':'brag-btn'}" style="${CONFIG.questStart?'':'font-size:16px;padding:13px'}" onclick="toggleQuestStart()">
+          ${CONFIG.questStart?'Reset countdown':'▶ Start the Quest — release all teams'}
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Backup</h3>
+      <div class="card-sub">Save a snapshot in case anything gets wiped</div>
+      <button class="brag-btn" style="font-size:15px;padding:13px" onclick="exportScores()">⬇️ Download backup</button>
+      <label class="danger-btn" style="display:block;text-align:center;background:var(--paper);color:var(--ink);border:1px solid var(--line);cursor:pointer">
+        ⬆️ Restore from backup
+        <input type="file" accept="application/json" style="display:none" onchange="importScores(this)">
+      </label>
+    </div>
+
+    <div class="card">
+      <h3>Danger zone</h3>
+      <div class="card-sub">Clear all times & scores for a fresh run</div>
+      <button class="danger-btn" onclick="resetAll()">Reset ALL scores</button>
+      <button class="danger-btn" style="background:var(--paper);color:var(--ink);border:1px solid var(--line)" onclick="lockApp()">🔒 Lock this phone</button>
+      <button class="danger-btn" style="background:var(--paper);color:var(--ink);border:1px solid var(--line)" onclick="backToLanding()">🧭 Back to start / Team view</button>
+    </div>
+    <div class="save-note">Changes save automatically ${LIVE?'and sync to every taskmaster':'on this device'}.</div>
+    <div class="footer-note">Signed in as ${esc(ME.name)} (Lead)</div>
+  `;
+}
+function teamSetupCard(t){
+  const tm=CONFIG.teams[t];
+  return `<div class="setup-sec" style="border-top:1px solid var(--line);padding-top:12px;margin-top:8px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span class="lb-badge" style="width:30px;height:30px;font-size:14px;background:${tm.color}">${t}</span><b>${esc(tm.name)}</b></div>
+    <div class="field"><label>Team name</label><input type="text" value="${esc(tm.name)}" onchange="setTeam('${t}','name',this.value)"></div>
+    <div class="field"><label>Taskmaster name</label><input type="text" value="${esc(tm.taskmaster||'')}" onchange="setTeam('${t}','taskmaster',this.value)"></div>
+    <div class="field"><label>Team PIN (for their clue page)</label><input type="text" inputmode="numeric" value="${esc(tm.pin||'')}" onchange="setTeam('${t}','pin',this.value)"></div>
+    <div class="field"><label>Members (one per line)</label><textarea onchange="setRoster('${t}',this.value)" placeholder="One member per line">${esc((tm.roster||[]).join('\n'))}</textarea></div>
+  </div>`;
+}
+function ptCell(label,key,val){ return `<div class="pt-cell"><label>${label}</label><input type="number" value="${val}" onchange="setPoint('${key}',this.value)"></div>`; }
+
+function setTeam(t,field,v){ CONFIG.teams[t][field]=v; pushConfig(); if(!LIVE)renderLogin(); toast('Saved'); }
+function setRoster(t,v){ CONFIG.teams[t].roster=v.split('\n').map(s=>s.trim()).filter(Boolean); pushConfig(); toast('Roster saved'); }
+function setLead(v){ CONFIG.lead=v; pushConfig(); }
+function toggleQuestStart(){
+  if(!CONFIG.questStart){
+    const c1=CHALLENGES[0].id;
+    const preview=TEAM_IDS.filter(t=>{ const cs=SCORES[t].ch[c1]; return !cs.start && !cs.end; });
+    openConfirm('Start the Quest?',
+      'Starts the '+(CONFIG.questMinutes||120)+'-minute countdown and starts Checkpoint 1 for '+preview.length+' team'+(preview.length===1?'':'s')+
+      ' at the same moment. Only Checkpoint 1 — the rest stay untouched.',
+      'Release the teams ▶',
+      ()=>{
+        const now=Date.now();
+        // recompute at confirm time in case live data changed while the dialog was open
+        const waiting=TEAM_IDS.filter(t=>{ const cs=SCORES[t].ch[c1]; return !cs.start && !cs.end; });
+        CONFIG.questStart=now;
+        waiting.forEach(t=>{ SCORES[t].ch[c1].start=now; });
+        pushAll();                        // one atomic write — no race
+        buzz([30,60,30]); refreshWakeLock();
+        toast(waiting.length?('Quest started — '+waiting.length+' teams running ⏱'):'Quest clock started ⏱');
+        renderAll();
+        if(ME) renderView('setup');
+      });
+  } else {
+    openConfirm('Reset the countdown?','The clock stops and disappears until you start it again. Checkpoint times already recorded are kept.','Reset',
+      ()=>{ CONFIG.questStart=null; pushConfig(); toast('Countdown reset'); renderAll(); if(ME) renderView('setup'); });
+  }
+}
+function toggleQuestEnded(){
+  if(!CONFIG.questEnded){
+    openConfirm('End the Quest?',
+      'This unlocks the Stats tab on the team link for everyone — including the real challenge names. Only do this once the last team is in.',
+      'Reveal it all 🎉',
+      ()=>{ CONFIG.questEnded=true; pushConfig(); toast('Quest finished — stats unlocked 🎉'); renderView('setup'); });
+  } else {
+    CONFIG.questEnded=false; pushConfig(); toast('Back to live — stats hidden again'); renderView('setup');
+  }
+}
+function setPoint(key,v){
+  const n=Number(v)||0;
+  if(key.startsWith('base')){ CONFIG.points.base[Number(key.slice(4))]=n; }
+  else { CONFIG.points[key]=n; }
+  pushConfig();
+  toast('Points updated');
+}
+function exportScores(){
+  try{
+    const data=JSON.stringify({config:CONFIG, scores:SCORES, savedAt:new Date().toISOString()},null,2);
+    const blob=new Blob([data],{type:'application/json'});
+    const a=document.createElement('a');
+    const d=new Date();
+    a.href=URL.createObjectURL(blob);
+    a.download='quest21-backup-'+d.toISOString().slice(0,16).replace(/[:T]/g,'-')+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    toast('Backup downloaded');
+  }catch(e){ toast('Could not download backup'); }
+}
+function importScores(input){
+  const f=input.files && input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    let d=null;
+    try{ d=JSON.parse(r.result); }catch(e){ toast('That file is not a valid backup'); input.value=''; return; }
+    if(!d || !d.scores){ toast('That file is not a valid backup'); input.value=''; return; }
+    openConfirm('Restore this backup?',
+      'This replaces all current times and scores with the ones in the file'+(d.savedAt?(' (saved '+new Date(d.savedAt).toLocaleString()+')'):'')+'.',
+      'Restore',
+      ()=>{ SCORES=d.scores; ensureScores(); if(d.config) CONFIG=mergeConfig(d.config);
+            pushScores(); pushConfig(); toast('Backup restored'); renderView('setup'); });
+    input.value='';
+  };
+  r.readAsText(f);
+}
+function resetAll(){
+  openConfirm('Reset ALL scores?',
+    'This clears every time and point for all 5 teams. It cannot be undone.',
+    'Reset everything',
+    ()=>{ SCORES={}; ensureScores(); pushScores(); toast('All scores reset'); renderView('setup'); });
+}
+
+/* =====================================================================
+   HELPERS
+   ===================================================================== */
+function clampN(n,lo,hi){ return Math.max(lo,Math.min(hi,n)); }
+let _modalFn=null;
+function openConfirm(title,body,confirmLabel,fn){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').textContent=body;
+  document.getElementById('modalConfirm').textContent=confirmLabel||'Confirm';
+  _modalFn=fn;
+  document.getElementById('modalBack').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBack').classList.remove('show'); _modalFn=null; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function fmtDur(ms){ if(ms==null)return '00:00'; const s=Math.floor(ms/1000); const m=Math.floor(s/60); const ss=s%60; return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0'); }
+function fmtClock(ts){ const d=new Date(ts); let h=d.getHours(), m=d.getMinutes(); const ap=h>=12?'PM':'AM'; h=h%12||12; return h+':'+String(m).padStart(2,'0')+' '+ap; }
+function toTimeInput(ts){ const d=new Date(ts); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+let toastT=null;
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),1600); }
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+initData();
+// confirm-modal button runs whatever action was queued
+document.getElementById('modalConfirm').addEventListener('click', ()=>{ const fn=_modalFn; closeModal(); if(fn) fn(); });
+document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') submitPin(); });
+
+if(SPECTATOR){
+  // read-only live board for teams / screens — no code needed
+  hideAllShells();
+  showEl('spectator',true);
+  document.getElementById('connPill').style.display='none';
+  renderSpectator();
+} else {
+  const role=lsGet('quest21_role');
+  const savedTeam=lsGet('quest21_team');
+  tView=lsGet('quest21_tview')||'clue';
+  if(role==='team' && savedTeam && CONFIG.teams[savedTeam]){
+    teamLogin(savedTeam);
+  } else if(role==='team'){
+    hideAllShells(); showTeamGate();
+  } else if(role==='tm'){
+    hideAllShells();
+    if(gateUnlocked()){ startApp(); refreshWakeLock(); } else { showGate(); }
+  } else {
+    hideAllShells();
+    document.getElementById('landing').classList.add('show');
+  }
+}
+document.getElementById('gateInput').addEventListener('keydown', e=>{ if(e.key==='Enter') submitGate(); });
+document.getElementById('teamPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') submitTeamPin(); });
+// point the gate's team link at the real absolute URL
+try{ const gl=document.getElementById('gateTeamLink'); if(gl) gl.href=teamLinkURL(); }catch(e){}
+</script>
+</body>
+</html>
