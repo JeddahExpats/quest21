@@ -1,0 +1,16 @@
+{
+  "name": "The 21° Quest",
+  "short_name": "21° Quest",
+  "description": "Live taskmaster scoreboard for The 21° Quest",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A3A28",
+  "theme_color": "#0A3A28",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
